@@ -4,15 +4,14 @@
 #include "utils.h"
 #include "layers.h"
 
+// Updates in place.
 void UpdateMat(std::shared_ptr<Mat> &mat, float alpha)
 {
-  // Updates in place.
-  for (int i = 0, n = mat->n_ * mat->d_; i < n; i++)
+  for (int i = 0; i < mat->w_.size(); i++)
   {
     if (mat->dw_[i] != 0)
     {
       mat->w_[i] += -alpha * mat->dw_[i];
-      mat->dw_[i] = 0;
     }
   }
 }
@@ -22,38 +21,37 @@ class Net
  public:
   Net(int ns, int na)
   {
-    int num_hidden_units = 100;  // Numer of hidden units.
+    int num_hidden_units = 100;
     w1_ = RandMat(num_hidden_units, ns, -0.01, 0.01);
     b1_ = std::shared_ptr<Mat>(new Mat(num_hidden_units, 1));
     w2_ = RandMat(na, num_hidden_units, -0.01, 0.01);
     b2_ = std::shared_ptr<Mat>(new Mat(na, 1));
+
+    input_ = std::shared_ptr<Mat>(new Mat(ns, 1));
   }
 
-  std::shared_ptr<Mat> Forward(std::shared_ptr<Mat> &s, bool needs_backprop)
+  void Create()
   {
-    graph_ = std::shared_ptr<Graph>(new Graph(needs_backprop));
+    graph_ = std::shared_ptr<Graph>(new Graph);
 
-    std::shared_ptr<Mat> mul1;
-    graph_->Process(std::shared_ptr<Object>(new MulOp(w1_, s, &mul1)));
-    std::shared_ptr<Mat> a1mat;
+    std::shared_ptr<Mat> mul1, a1mat, h1mat, mul2;
+    graph_->Process(std::shared_ptr<Object>(new MulOp(w1_, input_, &mul1)));
     graph_->Process(std::shared_ptr<Object>(new AddOp(mul1, b1_, &a1mat)));
-    std::shared_ptr<Mat> h1mat;
     graph_->Process(std::shared_ptr<Object>(new TanhOp(a1mat, &h1mat)));
 
-    std::shared_ptr<Mat> mul2;
     graph_->Process(std::shared_ptr<Object>(new MulOp(w2_, h1mat, &mul2)));
+    graph_->Process(std::shared_ptr<Object>(new AddOp(mul2, b2_, &output_)));
+  }
 
-    std::shared_ptr<Mat> a2mat;
-    graph_->Process(std::shared_ptr<Object>(new AddOp(mul2, b2_, &a2mat)));
-
-    graph_->Forward();
-
-    return a2mat;
+  void Forward(std::shared_ptr<Mat> &s)
+  {
+    *input_ = *s;
+    graph_->Forward(false);
   }
 
   void Backward()
   {
-    graph_->Backward();
+    graph_->Backward(false);
   }
 
   void UpdateNet(float alpha)
@@ -62,9 +60,14 @@ class Net
     UpdateMat(b1_, alpha);
     UpdateMat(w2_, alpha);
     UpdateMat(b2_, alpha);
+
+    std::fill(output_->dw_.begin(), output_->dw_.end(), 0);
+    graph_->ClearDw();
   }
 
   std::shared_ptr<Mat> w1_, w2_, b1_, b2_;
+  std::shared_ptr<Mat> input_, output_;
+
   std::shared_ptr<Graph> graph_;
 };
 
@@ -101,14 +104,6 @@ class DQNAgent : public Agent
  public:
   DQNAgent(int ns, int na)
   {
-    Reset(ns, na);
-  }
-  ~DQNAgent()
-  {
-  }
-
-  void Reset(int ns, int na)
-  {
     gamma_ = 0.9;
     epsilon_ = 0.2;
     alpha_ = 0.01;
@@ -128,15 +123,17 @@ class DQNAgent : public Agent
 
     // ns: x,y,vx,vy, puck dx,dy.
     net_ = std::shared_ptr<Net>(new Net(ns, na));
+    net_->Create();
 
     step_ = 0;
     r0_ = 0;
   }
+  ~DQNAgent()
+  {
+  }
 
   int Act(std::shared_ptr<Mat> &state)
   {
-    // Convert to a Mat column vector.
-
     int a;
     // Epsilon greedy policy.
     if (Random01() < epsilon_)
@@ -146,8 +143,8 @@ class DQNAgent : public Agent
     else
     {
       // Greedy wrt Q function.
-      std::shared_ptr<Mat> amat = net_->Forward(state, false);
-      a = MaxIdx(amat->w_);
+      net_->Forward(state);
+      a = MaxIdx(net_->output_->w_);
     }
 
     // Shift state memory.
@@ -164,13 +161,16 @@ class DQNAgent : public Agent
     // Want: Q(s,a) = r + gamma * max_a' Q(s',a').
 
     // Compute the target Q value.
-    std::shared_ptr<Mat> tmat = net_->Forward(observation->s1_, false);
-    float qmax = observation->r0_ + gamma_ * tmat->w_[MaxIdx(tmat->w_)];
+    net_->Forward(observation->s1_);
+    std::shared_ptr<Mat> &out = net_->output_;
+    float qmax = observation->r0_ + gamma_ * out->w_[MaxIdx(out->w_)];
 
     // Predict.
-    std::shared_ptr<Mat> pred = net_->Forward(observation->s0_, true);
+    net_->Forward(observation->s0_);
 
+    std::shared_ptr<Mat> &pred = net_->output_;
     float tderror = pred->w_[observation->a0_] - qmax;
+
     // Huber loss to robustify.
     if (tderror > tderror_clamp_)
     {
@@ -180,11 +180,11 @@ class DQNAgent : public Agent
     {
       tderror = -tderror_clamp_;
     }
+
     pred->dw_[observation->a0_] = tderror;
 
     net_->Backward();
 
-    // Update net.
     net_->UpdateNet(alpha_);
 
     return tderror;
@@ -223,7 +223,9 @@ class DQNAgent : public Agent
         LearnFromObservation(history_[ri]);
       }
     }
-    r0_ = r1;  // Store for next update.
+
+    // Store for next update.
+    r0_ = r1;
   }
 
   std::shared_ptr<Mat> s0_, s1_;

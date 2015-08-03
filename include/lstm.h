@@ -4,12 +4,12 @@
 #include "utils.h"
 #include "layers.h"
 
-class lstm : public Model
+class Lstm : public Model
 {
  public:
-  lstm(int input_size, std::vector<int> hidden_sizes, int output_size);
+  Lstm(int input_size, std::vector<int> hidden_sizes, int output_size);
 
-  std::shared_ptr<Mat> Forward(std::shared_ptr<Graph> &graph, int idx);
+  void Create(std::shared_ptr<Graph> &graph, int idx);
 
   void GetParameters(std::vector<std::shared_ptr<Mat>> &params_);
 

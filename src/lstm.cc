@@ -2,7 +2,7 @@
 
 using namespace std;
 
-lstm::lstm(int input_size, vector<int> hidden_sizes, int output_size)
+Lstm::Lstm(int input_size, vector<int> hidden_sizes, int output_size)
     : hidden_sizes_(hidden_sizes)
 {
   int hidden_size;
@@ -40,7 +40,7 @@ lstm::lstm(int input_size, vector<int> hidden_sizes, int output_size)
   whd_ = RandMat(output_size, hidden_size, -0.08, 0.08);
   bd_ = shared_ptr<Mat>(new Mat(output_size, 1));
 
-  wil_ = RandMat(output_size, input_size, -0.08, 0.08);
+  wil_ = RandMat(input_size, output_size, -0.08, 0.08);
 
   GetParameters(params_);
   for (size_t i = 0; i < params_.size(); ++i)
@@ -50,7 +50,7 @@ lstm::lstm(int input_size, vector<int> hidden_sizes, int output_size)
   }
 }
 
-shared_ptr<Mat> lstm::Forward(shared_ptr<Graph> &graph, int idx)
+void Lstm::Create(shared_ptr<Graph> &graph, int idx)
 {
   if (prev_hiddens_.size() == 0)
   {
@@ -67,8 +67,12 @@ shared_ptr<Mat> lstm::Forward(shared_ptr<Graph> &graph, int idx)
     }
   }
 
+  input_ = shared_ptr<Mat>(new Mat(wil_->d_, 1));
+  fill(input_->w_.begin(), input_->w_.end(), 0);
+  input_->w_[idx] = 1;
+
   shared_ptr<Mat> x;
-  graph->Process(shared_ptr<Object>(new ExtractRowOp(wil_, idx, &x)));
+  graph->Process(shared_ptr<Object>(new MulOp(wil_, input_, &x)));
 
   vector<shared_ptr<Mat>> hidden;
   vector<shared_ptr<Mat>> cell;
@@ -160,18 +164,13 @@ shared_ptr<Mat> lstm::Forward(shared_ptr<Graph> &graph, int idx)
   shared_ptr<Mat> hd;
   graph->Process(
       shared_ptr<Object>(new MulOp(whd_, hidden[hidden.size() - 1], &hd)));
-  shared_ptr<Mat> output;
-  graph->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output)));
-
-  graph->Forward();
+  graph->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output_)));
 
   prev_hiddens_ = hidden;
   prev_cells_ = cell;
-
-  return output;
 }
 
-void lstm::GetParameters(vector<shared_ptr<Mat>> &params)
+void Lstm::GetParameters(vector<shared_ptr<Mat>> &params)
 {
   for (size_t i = 0; i < hidden_sizes_.size(); ++i)
   {

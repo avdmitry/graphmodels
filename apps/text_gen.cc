@@ -8,7 +8,7 @@ using namespace std;
 int main(int argc, char *argv[])
 {
   // srand(time(NULL));
-  srand(3);
+  srand(6);
 
   if (argc != 3)
   {
@@ -28,11 +28,11 @@ int main(int argc, char *argv[])
   shared_ptr<Model> model;
   if (model_type == "rnn")
   {
-    model = shared_ptr<Model>(new rnn(kEmbedSize, hs, inout_size));
+    model = shared_ptr<Model>(new Rnn(kEmbedSize, hs, inout_size));
   }
   else if (model_type == "lstm")
   {
-    model = shared_ptr<Model>(new lstm(kEmbedSize, hs, inout_size));
+    model = shared_ptr<Model>(new Lstm(kEmbedSize, hs, inout_size));
   }
   else
   {

@@ -3,7 +3,7 @@
 
 #include "utils.h"
 
-// Extract row with index idx.
+// Extract row with index idx (optimization for special case MulOp).
 class ExtractRowOp : public Object
 {
  public:
@@ -32,6 +32,10 @@ class ExtractRowOp : public Object
     {
       mat_->dw_[mat_->d_ * idx_ + i] += out_->dw_[i];
     }
+  }
+
+  void ClearDw() {
+      std::fill(mat_->dw_.begin(), mat_->dw_.end(), 0);
   }
 
   int idx_;

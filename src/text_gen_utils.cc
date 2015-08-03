@@ -91,7 +91,10 @@ float CalcCost(shared_ptr<Graph> &graph, shared_ptr<Model> &model, string &sent,
       idx_target = data->letter_to_index_[sent[i + 1]];
     }
 
-    shared_ptr<Mat> logprobs = model->Forward(graph, idx_source);
+    model->Create(graph, idx_source);
+
+    graph->Forward();
+    shared_ptr<Mat> logprobs = model->output_;
 
     shared_ptr<Mat> probs = Softmax(logprobs);
     cost += -log(probs->w_[idx_target]);
@@ -124,7 +127,10 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
       idx = data->letter_to_index_[sent[sent.length() - 1]];
     }
 
-    shared_ptr<Mat> logprobs = model->Forward(graph, idx);
+    model->Create(graph, idx);
+
+    graph->Forward();
+    shared_ptr<Mat> logprobs = model->output_;
 
     // Sample predicted letter.
     if (temperature > 0.0 && temperature < 1.0 && sample_idx)

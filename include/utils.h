@@ -60,44 +60,50 @@ class Object
 
   virtual std::shared_ptr<Mat> Forward() = 0;
   virtual void Backward() = 0;
+  virtual void ClearDw() = 0;
 };
 
 class Graph
 {
  public:
-  Graph(bool needs_backprop = true) : needs_backprop_(needs_backprop)
+  Graph()
   {
   }
 
   void Process(std::shared_ptr<Object> obj)
   {
     forward_.emplace_back(obj);
-    if (needs_backprop_)
-    {
-      backprop_.emplace_back(obj);
-    }
+    backward_.emplace_back(obj);
   }
 
-  void Forward()
+  void Forward(bool need_clear = true)
   {
     for (int i = 0; i < forward_.size(); ++i)
     {
       forward_[i]->Forward();
     }
-    forward_.clear();
+    if (need_clear) forward_.clear();
   }
 
-  void Backward()
+  void Backward(bool need_clear = true)
   {
-    for (int i = backprop_.size() - 1; i >= 0; --i)
+    for (int i = backward_.size() - 1; i >= 0; --i)
     {
-      backprop_[i]->Backward();
+      backward_[i]->Backward();
+    }
+    if (need_clear) backward_.clear();
+  }
+
+  void ClearDw()
+  {
+    for (int i = backward_.size() - 1; i >= 0; --i)
+    {
+      backward_[i]->ClearDw();
     }
   }
 
  private:
-  bool needs_backprop_;
-  std::vector<std::shared_ptr<Object>> backprop_;
+  std::vector<std::shared_ptr<Object>> backward_;
   std::vector<std::shared_ptr<Object>> forward_;
 };
 
@@ -111,10 +117,11 @@ class Model
   {
   }
 
-  virtual std::shared_ptr<Mat> Forward(std::shared_ptr<Graph> &graph,
-                                       int idx) = 0;
+  virtual void Create(std::shared_ptr<Graph> &graph, int idx) = 0;
 
   virtual void ClearPrevState() = 0;
+
+  std::shared_ptr<Mat> input_, output_;
 
   std::vector<std::shared_ptr<Mat>> params_;
   std::vector<std::shared_ptr<Mat>> params_prev_;

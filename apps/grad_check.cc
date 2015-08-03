@@ -30,15 +30,15 @@ int main(int argc, char *argv[])
   shared_ptr<Model> model2;
   if (model_type == "rnn")
   {
-    model = shared_ptr<Model>(new rnn(kEmbedSize, hs, inout_size));
-    model1 = shared_ptr<Model>(new rnn(kEmbedSize, hs, inout_size));
-    model2 = shared_ptr<Model>(new rnn(kEmbedSize, hs, inout_size));
+    model = shared_ptr<Model>(new Rnn(kEmbedSize, hs, inout_size));
+    model1 = shared_ptr<Model>(new Rnn(kEmbedSize, hs, inout_size));
+    model2 = shared_ptr<Model>(new Rnn(kEmbedSize, hs, inout_size));
   }
   else if (model_type == "lstm")
   {
-    model = shared_ptr<Model>(new lstm(kEmbedSize, hs, inout_size));
-    model1 = shared_ptr<Model>(new lstm(kEmbedSize, hs, inout_size));
-    model2 = shared_ptr<Model>(new lstm(kEmbedSize, hs, inout_size));
+    model = shared_ptr<Model>(new Lstm(kEmbedSize, hs, inout_size));
+    model1 = shared_ptr<Model>(new Lstm(kEmbedSize, hs, inout_size));
+    model2 = shared_ptr<Model>(new Lstm(kEmbedSize, hs, inout_size));
   }
   else
   {

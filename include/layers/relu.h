@@ -34,6 +34,10 @@ class ReluOp : public Object
     }
   }
 
+  void ClearDw() {
+      std::fill(mat_->dw_.begin(), mat_->dw_.end(), 0);
+  }
+
   std::shared_ptr<Mat> mat_;
   std::shared_ptr<Mat> out_;
 };

@@ -8,11 +8,6 @@ class World
  public:
   World()
   {
-    Reset();
-  }
-
-  void Reset()
-  {
     ppx_ = Random01();  // x,y
     ppy_ = Random01();
     pvx_ = Random01() * 0.05 - 0.025;  // velocity
@@ -51,7 +46,7 @@ class World
     return state;
   }
 
-  shared_ptr<Mat> SampleNextState(int a, int *reward)
+  int SampleNextState(int a)
   {
     // World dynamics.
     ppx_ += pvx_;  // newton
@@ -131,9 +126,7 @@ class World
 
     // if (a == 4) { r += 0.05; } // Give bonus for gliding with no force.
 
-    // Evolve state in time.
-    *reward = r;
-    return GetState();
+    return r;
   }
 
   int step_;
@@ -157,8 +150,7 @@ int main(int argc, char *argv[])
   {
     shared_ptr<Mat> state = env->GetState();
     int action = agent->Act(state);
-    int r;
-    env->SampleNextState(action, &r);
+    int r = env->SampleNextState(action);
     if (step > 0)
     {
       agent->Learn(r);

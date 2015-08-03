@@ -2,7 +2,7 @@
 
 using namespace std;
 
-rnn::rnn(int input_size, vector<int> hidden_sizes, int output_size)
+Rnn::Rnn(int input_size, vector<int> hidden_sizes, int output_size)
     : hidden_sizes_(hidden_sizes)
 {
   int hidden_size;
@@ -28,7 +28,7 @@ rnn::rnn(int input_size, vector<int> hidden_sizes, int output_size)
   whd_ = RandMat(output_size, hidden_size, -0.08, 0.08);
   bd_ = shared_ptr<Mat>(new Mat(output_size, 1));
 
-  wil_ = RandMat(output_size, input_size, -0.08, 0.08);
+  wil_ = RandMat(input_size, output_size, -0.08, 0.08);
 
   GetParameters(params_);
   for (size_t i = 0; i < params_.size(); ++i)
@@ -38,7 +38,7 @@ rnn::rnn(int input_size, vector<int> hidden_sizes, int output_size)
   }
 }
 
-shared_ptr<Mat> rnn::Forward(shared_ptr<Graph> &graph, int idx)
+void Rnn::Create(shared_ptr<Graph> &graph, int idx)
 {
   if (prev_hiddens_.size() == 0)
   {
@@ -48,8 +48,12 @@ shared_ptr<Mat> rnn::Forward(shared_ptr<Graph> &graph, int idx)
     }
   }
 
+  input_ = shared_ptr<Mat>(new Mat(wil_->d_, 1));
+  fill(input_->w_.begin(), input_->w_.end(), 0);
+  input_->w_[idx] = 1;
+
   shared_ptr<Mat> x;
-  graph->Process(shared_ptr<Object>(new ExtractRowOp(wil_, idx, &x)));
+  graph->Process(shared_ptr<Object>(new MulOp(wil_, input_, &x)));
 
   vector<shared_ptr<Mat>> hidden;
   for (size_t d = 0; d < hidden_sizes_.size(); d++)
@@ -65,14 +69,11 @@ shared_ptr<Mat> rnn::Forward(shared_ptr<Graph> &graph, int idx)
     }
     shared_ptr<Mat> &hidden_prev = prev_hiddens_[d];
 
-    shared_ptr<Mat> h0, h1;
+    shared_ptr<Mat> h0, h1, h01, bias, hidden_curr;
     graph->Process(shared_ptr<Object>(new MulOp(wxh_[d], input_vector, &h0)));
     graph->Process(shared_ptr<Object>(new MulOp(whh_[d], hidden_prev, &h1)));
-    shared_ptr<Mat> h01;
     graph->Process(shared_ptr<Object>(new AddOp(h0, h1, &h01)));
-    shared_ptr<Mat> bias;
     graph->Process(shared_ptr<Object>(new AddOp(h01, bhh_[d], &bias)));
-    shared_ptr<Mat> hidden_curr;
     graph->Process(shared_ptr<Object>(new ReluOp(bias, &hidden_curr)));
 
     hidden.emplace_back(hidden_curr);
@@ -82,17 +83,12 @@ shared_ptr<Mat> rnn::Forward(shared_ptr<Graph> &graph, int idx)
   shared_ptr<Mat> hd;
   graph->Process(
       shared_ptr<Object>(new MulOp(whd_, hidden[hidden.size() - 1], &hd)));
-  shared_ptr<Mat> output;
-  graph->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output)));
-
-  graph->Forward();
+  graph->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output_)));
 
   prev_hiddens_ = hidden;
-
-  return output;
 }
 
-void rnn::GetParameters(vector<shared_ptr<Mat>> &params)
+void Rnn::GetParameters(vector<shared_ptr<Mat>> &params)
 {
   for (size_t i = 0; i < hidden_sizes_.size(); ++i)
   {

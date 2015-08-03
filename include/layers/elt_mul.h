@@ -35,6 +35,11 @@ class EltMulOp : public Object
     }
   }
 
+  void ClearDw() {
+      std::fill(mat1_->dw_.begin(), mat1_->dw_.end(), 0);
+      std::fill(mat2_->dw_.begin(), mat2_->dw_.end(), 0);
+  }
+
   std::shared_ptr<Mat> mat1_, mat2_;
   std::shared_ptr<Mat> out_;
 };
