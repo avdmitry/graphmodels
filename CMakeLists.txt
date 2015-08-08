@@ -7,12 +7,15 @@ include(cmake/utils.cmake)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 file(GLOB_RECURSE srcs src/*.cc)
+file(GLOB_RECURSE test test/*.cc)
 file(GLOB_RECURSE hdrs include/*.h*)
 
 include_directories(include)
-add_library(graphmodels ${srcs} ${hdrs})
+add_library(graphmodels ${srcs} ${test} ${hdrs})
 default_properties(graphmodels)
 set(CMAKE_CXX_FLAGS "-std=c++11")
+
+add_subdirectory(math)
 
 add_applications()
 

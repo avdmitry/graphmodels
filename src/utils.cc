@@ -6,52 +6,52 @@ using namespace std;
 
 shared_ptr<default_random_engine> engine(new default_random_engine);
 
-shared_ptr<Mat> RandMat(int n, int d, float l, float r)
+shared_ptr<MatWdw> RandMat(int n, int d, float l, float r)
 {
-  shared_ptr<Mat> mat(new Mat(n, d));
+  shared_ptr<MatWdw> mat(new MatWdw(n, d));
 
-  for (int i = 0; i < mat->w_.size(); ++i)
+  for (int i = 0; i < mat->w_->data_.size(); ++i)
   {
-    mat->w_[i] = Randf(l, r);
+    mat->w_->data_[i] = Randf(l, r);
   }
 
   return mat;
 }
 
-shared_ptr<Mat> RandMatGauss(int n, int d, float mean, float stddev)
+shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev)
 {
-  shared_ptr<Mat> mat(new Mat(n, d));
+  shared_ptr<MatWdw> mat(new MatWdw(n, d));
 
   normal_distribution<float> distribution(mean, stddev);
-  for (int i = 0; i < mat->w_.size(); ++i)
+  for (int i = 0; i < mat->w_->data_.size(); ++i)
   {
-    mat->w_[i] = distribution(*engine);
+    mat->w_->data_[i] = distribution(*engine);
   }
 
   return mat;
 }
 
-shared_ptr<Mat> Softmax(shared_ptr<Mat> &mat)
+shared_ptr<Mat> Softmax(std::shared_ptr<Mat> &mat)
 {
-  shared_ptr<Mat> out(new Mat(mat->n_, mat->d_));
-  float maxval = mat->w_[0];
-  for (int i = 0; i < mat->w_.size(); i++)
+  shared_ptr<Mat> out(new Mat(mat->size_[0], mat->size_[1]));
+  float maxval = mat->data_[0];
+  for (int i = 0; i < mat->data_.size(); i++)
   {
-    if (mat->w_[i] > maxval)
+    if (mat->data_[i] > maxval)
     {
-      maxval = mat->w_[i];
+      maxval = mat->data_[i];
     }
   }
 
   float sum = 0.0;
-  for (int i = 0; i < out->w_.size(); i++)
+  for (int i = 0; i < out->data_.size(); i++)
   {
-    out->w_[i] = exp(mat->w_[i] - maxval);
-    sum += out->w_[i];
+    out->data_[i] = exp(mat->data_[i] - maxval);
+    sum += out->data_[i];
   }
-  for (int i = 0; i < out->w_.size(); i++)
+  for (int i = 0; i < out->data_.size(); i++)
   {
-    out->w_[i] /= sum;
+    out->data_[i] /= sum;
   }
 
   return out;

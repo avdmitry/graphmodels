@@ -5,23 +5,34 @@
 
 using namespace std;
 
+string rnn_out = "";
+
 int main(int argc, char *argv[])
 {
-  // srand(time(NULL));
   srand(6);
 
+  //math = shared_ptr<Math>(new MathCuda(0));
   math = shared_ptr<Math>(new MathCpu);
   math->Init();
 
-  if (argc != 3)
+  if (argc != 4)
   {
-    printf("usage: file_with_sentences lstm/rnn\n");
+    printf("usage: file_with_sentences lstm/rnn file_expected_output\n");
     return -1;
   }
   string data_file_name(argv[1]);
   string model_type(argv[2]);
+  string expected_output_file_name(argv[3]);
 
-  printf("init data\n");
+  string expected_output;
+  string line;
+  ifstream infile(expected_output_file_name);
+  while (getline(infile, line))
+  {
+    expected_output += line;
+    expected_output += "\n";
+  }
+
   shared_ptr<Data> data(new Data);
   LoadData(data_file_name, data);
 
@@ -43,10 +54,11 @@ int main(int argc, char *argv[])
     return -1;
   }
 
+  string output;
   float cost_epoch = 0;
   int num_epoch = 0;
   clock_t begin_time = clock();
-  for (int step = 0; step < 100000; ++step)
+  for (int step = 0; step < 2 * data->sentences_.size() + 1; ++step)
   {
     string sent = data->sentences_[Randi(0, data->sentences_.size() - 1)];
 
@@ -64,15 +76,18 @@ int main(int argc, char *argv[])
       num_epoch += 1;
       printf("%u epoch, cost: %.3f, time: %.3f s\n", num_epoch, cost_epoch,
              time_epoch);
+      char tmp[10];
+      sprintf(tmp, "%f\n", cost_epoch);
+      output += tmp;
       cost_epoch = 0;
 
-      printf("\tSamples:\n");
       string predict;
       vector<bool> sample_type = {true, true, true, true, true, false};
       for (int i = 0; i < sample_type.size(); ++i)
       {
         predict = PredictSentence(model, data, sample_type[i]);
-        printf("\t%s\n", predict.c_str());
+        output += predict;
+        output += "\n";
       }
 
       begin_time = clock();
@@ -80,6 +95,17 @@ int main(int argc, char *argv[])
   }
 
   math->Deinit();
+
+  if (output != expected_output)
+  {
+    printf("test failed\n");
+    printf("expected:\n%s\n", expected_output.c_str());
+    printf("output:\n%s\n", output.c_str());
+  }
+  else
+  {
+    printf("test passed\n");
+  }
 
   return 0;
 }

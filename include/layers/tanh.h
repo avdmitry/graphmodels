@@ -1,43 +1,37 @@
-#ifndef TanhRow_H
-#define TanhRow_H
+#ifndef TANH_H
+#define TANH_H
 
 #include "utils.h"
 
 class TanhOp : public Object
 {
  public:
-  TanhOp(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out)
+  TanhOp(std::shared_ptr<MatWdw> &in, std::shared_ptr<MatWdw> *out)
   {
     mat_ = in;
-    out_ = std::shared_ptr<Mat>(new Mat(mat_->n_, mat_->d_));
+    out_ = std::shared_ptr<MatWdw>(new MatWdw(mat_->size_[0], mat_->size_[1]));
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  std::shared_ptr<MatWdw> Forward()
   {
-    for (int i = 0; i < mat_->w_.size(); i++)
-    {
-      out_->w_[i] = tanh(mat_->w_[i]);
-    }
+    math->Tanh(mat_->w_, out_->w_);
 
     return out_;
   }
 
   void Backward()
   {
-    for (size_t i = 0; i < mat_->w_.size(); i++)
-    {
-      float mwi = out_->w_[i];
-      mat_->dw_[i] += (1.0 - mwi * mwi) * out_->dw_[i];
-    }
+    math->TanhDeriv(out_->dw_, out_->w_, mat_->dw_);
   }
 
-  void ClearDw() {
-      std::fill(mat_->dw_.begin(), mat_->dw_.end(), 0);
+  void ClearDw()
+  {
+    std::fill(mat_->dw_->data_.begin(), mat_->dw_->data_.end(), 0);
   }
 
-  std::shared_ptr<Mat> mat_;
-  std::shared_ptr<Mat> out_;
+  std::shared_ptr<MatWdw> mat_;
+  std::shared_ptr<MatWdw> out_;
 };
 
 #endif

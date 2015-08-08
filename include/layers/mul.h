@@ -1,5 +1,5 @@
-#ifndef Mul_H
-#define Mul_H
+#ifndef MUL_H
+#define MUL_H
 
 #include "utils.h"
 
@@ -7,57 +7,37 @@
 class MulOp : public Object
 {
  public:
-  MulOp(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
-        std::shared_ptr<Mat> *out)
+  MulOp(std::shared_ptr<MatWdw> &mat1, std::shared_ptr<MatWdw> &mat2,
+        std::shared_ptr<MatWdw> *out)
   {
-    assert(mat1->d_ == mat2->n_);
+    assert(mat1->size_[1] == mat2->size_[0]);
     mat1_ = mat1;
     mat2_ = mat2;
-    out_ = std::shared_ptr<Mat>(new Mat(mat1_->n_, mat2_->d_));
+    out_ = std::shared_ptr<MatWdw>(new MatWdw(mat1_->size_[0], mat2_->size_[1]));
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  std::shared_ptr<MatWdw> Forward()
   {
-    for (int i = 0; i < mat1_->n_; i++)
-    {  // loop over rows of m1
-      for (int j = 0; j < mat2_->d_; j++)
-      {  // loop over cols of m2
-        float dot = 0.0;
-        for (int k = 0; k < mat1_->d_; k++)
-        {  // dot product loop
-          dot += mat1_->w_[mat1_->d_ * i + k] * mat2_->w_[mat2_->d_ * k + j];
-        }
-        out_->w_[mat2_->d_ * i + j] = dot;
-      }
-    }
+    math->Mul(mat1_->w_, mat2_->w_, out_->w_);
 
     return out_;
   }
 
   void Backward()
   {
-    for (int i = 0; i < mat1_->n_; i++)
-    {  // loop over rows of m1
-      for (int j = 0; j < mat2_->d_; j++)
-      {  // loop over cols of m2
-        for (int k = 0; k < mat1_->d_; k++)
-        {  // dot product loop
-          float b = out_->dw_[mat2_->d_ * i + j];
-          mat1_->dw_[mat1_->d_ * i + k] += mat2_->w_[mat2_->d_ * k + j] * b;
-          mat2_->dw_[mat2_->d_ * k + j] += mat1_->w_[mat1_->d_ * i + k] * b;
-        }
-      }
-    }
+    math->MulDeriv(mat1_->w_, mat2_->w_, mat1_->dw_,
+                   mat2_->dw_, out_->dw_);
   }
 
-  void ClearDw() {
-      std::fill(mat1_->dw_.begin(), mat1_->dw_.end(), 0);
-      std::fill(mat2_->dw_.begin(), mat2_->dw_.end(), 0);
+  void ClearDw()
+  {
+    std::fill(mat1_->dw_->data_.begin(), mat1_->dw_->data_.end(), 0);
+    std::fill(mat2_->dw_->data_.begin(), mat2_->dw_->data_.end(), 0);
   }
 
-  std::shared_ptr<Mat> mat1_, mat2_;
-  std::shared_ptr<Mat> out_;
+  std::shared_ptr<MatWdw> mat1_, mat2_;
+  std::shared_ptr<MatWdw> out_;
 };
 
 #endif

@@ -1,5 +1,10 @@
 ### Graph Models
 
+Ultimate goal is to implement reference and optimized (blas, cuda, etc.) algorithms on C++ for three major class of Graph Models:
+- *Feed-forward Neural Networks* including *Convolutional Neural Network* model.
+- *Reccurent Neural Networks* including *Long Short-Term Memory* model.
+- *Probabilistic Graphical Models*.
+
 *01 August 2015*
 
 Recently I am interested in reinforcement learning and I also wanted to play with recurent neural networks for some time, after a bunch of image captioning papers were published. For both these models I found nice reference implementation on javascript from [Andrej Karpathy](https://github.com/karpathy): [recurrentjs](https://github.com/karpathy/recurrentjs) & [reinforcejs](https://github.com/karpathy/reinforcejs) and his useful article: [The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/).

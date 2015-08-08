@@ -44,14 +44,14 @@ void Learn(shared_ptr<Model> &model)
   float clipval = 5.0;          // clip gradients at this value
   for (size_t j = 0; j < model->params_.size(); ++j)
   {
-    shared_ptr<Mat> &mat = model->params_[j];
-    shared_ptr<Mat> &mat_prev = model->params_prev_[j];
-    for (size_t i = 0; i < mat->w_.size(); ++i)
+    shared_ptr<MatWdw> &mat = model->params_[j];
+    shared_ptr<MatWdw> &mat_prev = model->params_prev_[j];
+    for (size_t i = 0; i < mat->w_->data_.size(); ++i)
     {
       // Rmsprop adaptive learning rate.
-      float mdwi = mat->dw_[i];
-      mat_prev->w_[i] =
-          decay_rate * mat_prev->w_[i] + (1.0 - decay_rate) * mdwi * mdwi;
+      float mdwi = mat->dw_->data_[i];
+      mat_prev->w_->data_[i] =
+          decay_rate * mat_prev->w_->data_[i] + (1.0 - decay_rate) * mdwi * mdwi;
 
       // Gradient clip.
       if (mdwi > clipval)
@@ -64,9 +64,9 @@ void Learn(shared_ptr<Model> &model)
       }
 
       // Update (and regularize).
-      mat->w_[i] += -learning_rate * mdwi / sqrt(mat_prev->w_[i] + smooth_eps) -
-                   regc * mat->w_[i];
-      mat->dw_[i] = 0;
+      mat->w_->data_[i] += -learning_rate * mdwi / sqrt(mat_prev->w_->data_[i] + smooth_eps) -
+                   regc * mat->w_->data_[i];
+      mat->dw_->data_[i] = 0;
     }
   }
 }
@@ -94,14 +94,14 @@ float CalcCost(shared_ptr<Graph> &graph, shared_ptr<Model> &model, string &sent,
     model->Create(graph, idx_source);
 
     graph->Forward();
-    shared_ptr<Mat> logprobs = model->output_;
+    shared_ptr<MatWdw> logprobs = model->output_;
 
-    shared_ptr<Mat> probs = Softmax(logprobs);
-    cost += -log(probs->w_[idx_target]);
+    shared_ptr<Mat> probs = Softmax(logprobs->w_);
+    cost += -log(probs->data_[idx_target]);
 
     // Write gradients into log probabilities.
-    logprobs->dw_ = probs->w_;
-    logprobs->dw_[idx_target] -= 1;
+    logprobs->dw_->data_ = probs->data_;
+    logprobs->dw_->data_[idx_target] -= 1;
   }
 
   return cost / sent.length();
@@ -130,7 +130,7 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
     model->Create(graph, idx);
 
     graph->Forward();
-    shared_ptr<Mat> logprobs = model->output_;
+    shared_ptr<MatWdw> logprobs = model->output_;
 
     // Sample predicted letter.
     if (temperature > 0.0 && temperature < 1.0 && sample_idx)
@@ -139,20 +139,20 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
       // if temperature is high, logprobs will go towards zero
       // and the softmax outputs will be more diffuse. if temperature is
       // very low, the softmax outputs will be more peaky.
-      for (int i = 0; i < logprobs->w_.size(); i++)
+      for (int i = 0; i < logprobs->w_->data_.size(); i++)
       {
-        logprobs->w_[i] /= temperature;
+        logprobs->w_->data_[i] /= temperature;
       }
     }
 
-    shared_ptr<Mat> probs = Softmax(logprobs);
+    shared_ptr<Mat> probs = Softmax(logprobs->w_);
     if (sample_idx)
     {
-      idx = SampleIdx(probs->w_);
+      idx = SampleIdx(probs->data_);
     }
     else
     {
-      idx = MaxIdx(probs->w_);
+      idx = MaxIdx(probs->data_);
     }
 
     // End token predicted, break out.

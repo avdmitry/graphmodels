@@ -11,7 +11,7 @@ class Lstm : public Model
 
   void Create(std::shared_ptr<Graph> &graph, int idx);
 
-  void GetParameters(std::vector<std::shared_ptr<Mat>> &params_);
+  void GetParameters(std::vector<std::shared_ptr<MatWdw>> &params_);
 
   void ClearPrevState()
   {
@@ -19,13 +19,13 @@ class Lstm : public Model
     prev_cells_.clear();
   }
 
-  std::vector<std::shared_ptr<Mat>> wix_, wih_, bi_, wfx_, wfh_, bf_;
-  std::vector<std::shared_ptr<Mat>> wox_, woh_, bo_, wcx_, wch_, bc_;
-  std::shared_ptr<Mat> whd_, bd_;
-  std::shared_ptr<Mat> wil_;
+  std::vector<std::shared_ptr<MatWdw>> wix_, wih_, bi_, wfx_, wfh_, bf_;
+  std::vector<std::shared_ptr<MatWdw>> wox_, woh_, bo_, wcx_, wch_, bc_;
+  std::shared_ptr<MatWdw> whd_, bd_;
+  std::shared_ptr<MatWdw> wil_;
 
-  std::vector<std::shared_ptr<Mat>> prev_hiddens_;
-  std::vector<std::shared_ptr<Mat>> prev_cells_;
+  std::vector<std::shared_ptr<MatWdw>> prev_hiddens_;
+  std::vector<std::shared_ptr<MatWdw>> prev_cells_;
 
   std::vector<int> hidden_sizes_;
 };

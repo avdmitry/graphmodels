@@ -14,25 +14,32 @@
 #include <map>
 #include <memory>
 
-class Mat
+#include "math/common.h"
+
+class MatWdw
 {
  public:
-  Mat() : n_(0), d_(0)
+  MatWdw()
   {
   }
-  ~Mat()
+  ~MatWdw()
   {
   }
 
-  Mat(int n, int d) : n_(n), d_(d)
+  MatWdw(int n, int d)
   {
-    w_.resize(n * d, 0);
-    dw_.resize(n * d, 0);
+    // w_ = std::shared_ptr<Mat>(new Mat(n, d));
+    // dw_ = std::shared_ptr<Mat>(new Mat(n, d));
+    w_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, 1, 1})));
+    dw_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, 1, 1})));
+
+    size_.emplace_back(n);
+    size_.emplace_back(d);
   }
 
-  int n_, d_;
-  std::vector<float> w_;
-  std::vector<float> dw_;
+  std::vector<int> size_;
+  std::shared_ptr<Mat> w_;
+  std::shared_ptr<Mat> dw_;
 };
 
 class Data
@@ -58,7 +65,7 @@ class Object
   {
   }
 
-  virtual std::shared_ptr<Mat> Forward() = 0;
+  virtual std::shared_ptr<MatWdw> Forward() = 0;
   virtual void Backward() = 0;
   virtual void ClearDw() = 0;
 };
@@ -121,10 +128,10 @@ class Model
 
   virtual void ClearPrevState() = 0;
 
-  std::shared_ptr<Mat> input_, output_;
+  std::shared_ptr<MatWdw> input_, output_;
 
-  std::vector<std::shared_ptr<Mat>> params_;
-  std::vector<std::shared_ptr<Mat>> params_prev_;
+  std::vector<std::shared_ptr<MatWdw>> params_;
+  std::vector<std::shared_ptr<MatWdw>> params_prev_;
 };
 
 inline float Random01()
@@ -142,9 +149,9 @@ inline int Randi(int l, int r)
   return floor(Randf(l, r));
 }
 
-std::shared_ptr<Mat> RandMat(int n, int d, float l, float r);
+std::shared_ptr<MatWdw> RandMat(int n, int d, float l, float r);
 
-std::shared_ptr<Mat> RandMatGauss(int n, int d, float mean, float stddev);
+std::shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev);
 
 std::shared_ptr<Mat> Softmax(std::shared_ptr<Mat> &mat);
 

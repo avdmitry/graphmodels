@@ -1,5 +1,5 @@
-#ifndef Add_H
-#define Add_H
+#ifndef ADD_H
+#define ADD_H
 
 #include "utils.h"
 
@@ -7,42 +7,35 @@
 class AddOp : public Object
 {
  public:
-  AddOp(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
-        std::shared_ptr<Mat> *out)
+  AddOp(std::shared_ptr<MatWdw> &mat1, std::shared_ptr<MatWdw> &mat2,
+        std::shared_ptr<MatWdw> *out)
   {
-    assert(mat1->w_.size() == mat2->w_.size());
+    assert(mat1->w_->data_.size() == mat2->w_->data_.size());
     mat1_ = mat1;
     mat2_ = mat2;
-    out_ = std::shared_ptr<Mat>(new Mat(mat1_->n_, mat1_->d_));
+    out_ = std::shared_ptr<MatWdw>(new MatWdw(mat1_->size_[0], mat1_->size_[1]));
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  std::shared_ptr<MatWdw> Forward()
   {
-    for (int i = 0; i < mat1_->w_.size(); i++)
-    {
-      out_->w_[i] = mat1_->w_[i] + mat2_->w_[i];
-    }
+    math->Add(mat1_->w_, mat2_->w_, out_->w_);
 
     return out_;
   }
 
   void Backward()
   {
-    for (int i = 0; i < mat1_->w_.size(); i++)
-    {
-      mat1_->dw_[i] += out_->dw_[i];
-      mat2_->dw_[i] += out_->dw_[i];
-    }
+    math->AddDeriv(mat1_->dw_, mat2_->dw_, out_->dw_);
   }
 
   void ClearDw() {
-      std::fill(mat1_->dw_.begin(), mat1_->dw_.end(), 0);
-      std::fill(mat2_->dw_.begin(), mat2_->dw_.end(), 0);
+      std::fill(mat1_->dw_->data_.begin(), mat1_->dw_->data_.end(), 0);
+      std::fill(mat2_->dw_->data_.begin(), mat2_->dw_->data_.end(), 0);
   }
 
-  std::shared_ptr<Mat> mat1_, mat2_;
-  std::shared_ptr<Mat> out_;
+  std::shared_ptr<MatWdw> mat1_, mat2_;
+  std::shared_ptr<MatWdw> out_;
 };
 
 #endif

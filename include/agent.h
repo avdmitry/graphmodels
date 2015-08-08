@@ -5,13 +5,13 @@
 #include "layers.h"
 
 // Updates in place.
-void UpdateMat(std::shared_ptr<Mat> &mat, float alpha)
+void UpdateMat(std::shared_ptr<MatWdw> &mat, float alpha)
 {
-  for (int i = 0; i < mat->w_.size(); i++)
+  for (int i = 0; i < mat->w_->data_.size(); i++)
   {
-    if (mat->dw_[i] != 0)
+    if (mat->dw_->data_[i] != 0)
     {
-      mat->w_[i] += -alpha * mat->dw_[i];
+      mat->w_->data_[i] += -alpha * mat->dw_->data_[i];
     }
   }
 }
@@ -23,18 +23,18 @@ class Net
   {
     int num_hidden_units = 100;
     w1_ = RandMat(num_hidden_units, ns, -0.01, 0.01);
-    b1_ = std::shared_ptr<Mat>(new Mat(num_hidden_units, 1));
+    b1_ = std::shared_ptr<MatWdw>(new MatWdw(num_hidden_units, 1));
     w2_ = RandMat(na, num_hidden_units, -0.01, 0.01);
-    b2_ = std::shared_ptr<Mat>(new Mat(na, 1));
+    b2_ = std::shared_ptr<MatWdw>(new MatWdw(na, 1));
 
-    input_ = std::shared_ptr<Mat>(new Mat(ns, 1));
+    input_ = std::shared_ptr<MatWdw>(new MatWdw(ns, 1));
   }
 
   void Create()
   {
     graph_ = std::shared_ptr<Graph>(new Graph);
 
-    std::shared_ptr<Mat> mul1, a1mat, h1mat, mul2;
+    std::shared_ptr<MatWdw> mul1, a1mat, h1mat, mul2;
     graph_->Process(std::shared_ptr<Object>(new MulOp(w1_, input_, &mul1)));
     graph_->Process(std::shared_ptr<Object>(new AddOp(mul1, b1_, &a1mat)));
     graph_->Process(std::shared_ptr<Object>(new TanhOp(a1mat, &h1mat)));
@@ -43,7 +43,7 @@ class Net
     graph_->Process(std::shared_ptr<Object>(new AddOp(mul2, b2_, &output_)));
   }
 
-  void Forward(std::shared_ptr<Mat> &s)
+  void Forward(std::shared_ptr<MatWdw> &s)
   {
     *input_ = *s;
     graph_->Forward(false);
@@ -61,12 +61,12 @@ class Net
     UpdateMat(w2_, alpha);
     UpdateMat(b2_, alpha);
 
-    std::fill(output_->dw_.begin(), output_->dw_.end(), 0);
+    std::fill(output_->dw_->data_.begin(), output_->dw_->data_.end(), 0);
     graph_->ClearDw();
   }
 
-  std::shared_ptr<Mat> w1_, w2_, b1_, b2_;
-  std::shared_ptr<Mat> input_, output_;
+  std::shared_ptr<MatWdw> w1_, w2_, b1_, b2_;
+  std::shared_ptr<MatWdw> input_, output_;
 
   std::shared_ptr<Graph> graph_;
 };
@@ -74,7 +74,7 @@ class Net
 class Observation
 {
  public:
-  Observation(std::shared_ptr<Mat> &s0, std::shared_ptr<Mat> &s1, int a0,
+  Observation(std::shared_ptr<MatWdw> &s0, std::shared_ptr<MatWdw> &s1, int a0,
               float r0)
       : s0_(s0), s1_(s1), a0_(a0), r0_(r0)
   {
@@ -83,7 +83,7 @@ class Observation
   {
   }
 
-  std::shared_ptr<Mat> s0_, s1_;
+  std::shared_ptr<MatWdw> s0_, s1_;
   int a0_;
   float r0_;
 };
@@ -132,7 +132,7 @@ class DQNAgent : public Agent
   {
   }
 
-  int Act(std::shared_ptr<Mat> &state)
+  int Act(std::shared_ptr<MatWdw> &state)
   {
     int a;
     // Epsilon greedy policy.
@@ -144,7 +144,7 @@ class DQNAgent : public Agent
     {
       // Greedy wrt Q function.
       net_->Forward(state);
-      a = MaxIdx(net_->output_->w_);
+      a = MaxIdx(net_->output_->w_->data_);
     }
 
     // Shift state memory.
@@ -162,14 +162,14 @@ class DQNAgent : public Agent
 
     // Compute the target Q value.
     net_->Forward(observation->s1_);
-    std::shared_ptr<Mat> &out = net_->output_;
-    float qmax = observation->r0_ + gamma_ * out->w_[MaxIdx(out->w_)];
+    std::shared_ptr<MatWdw> &out = net_->output_;
+    float qmax = observation->r0_ + gamma_ * out->w_->data_[MaxIdx(out->w_->data_)];
 
     // Predict.
     net_->Forward(observation->s0_);
 
-    std::shared_ptr<Mat> &pred = net_->output_;
-    float tderror = pred->w_[observation->a0_] - qmax;
+    std::shared_ptr<MatWdw> &pred = net_->output_;
+    float tderror = pred->w_->data_[observation->a0_] - qmax;
 
     // Huber loss to robustify.
     if (tderror > tderror_clamp_)
@@ -181,7 +181,7 @@ class DQNAgent : public Agent
       tderror = -tderror_clamp_;
     }
 
-    pred->dw_[observation->a0_] = tderror;
+    pred->dw_->data_[observation->a0_] = tderror;
 
     net_->Backward();
 
@@ -228,7 +228,7 @@ class DQNAgent : public Agent
     r0_ = r1;
   }
 
-  std::shared_ptr<Mat> s0_, s1_;
+  std::shared_ptr<MatWdw> s0_, s1_;
   int a0_, a1_;
   float r0_;
 
