@@ -40,7 +40,7 @@ message(STATUS "BUILD CPU: " ${BUILD_CPU})
 #OFF
 set(BUILD_SHARED_LIBS ON)
 
-#set(CMAKE_CXX_FLAGS "-std=c++11 -ffast-math")
+set(CMAKE_CXX_FLAGS "-O3 -ffast-math -std=c++11")
 
 list(APPEND CUDA_NVCC_FLAGS "-O3 --use_fast_math -std=c++11")
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_20)

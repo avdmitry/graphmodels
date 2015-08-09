@@ -3,11 +3,15 @@
 #include <stdio.h>
 #include <cublas_v2.h>
 
-#include "cpu.h"  // SgemmCpu
+#include "cpu.h"  // SgemmCpu, default implementation
+
+using namespace std;
+
+static shared_ptr<MathCpu> math_cpu(new MathCpu);
 
 cublasHandle_t handle;
 
-int CopyToDevice(std::shared_ptr<Mat>& mat)
+int CopyToDevice(shared_ptr<Mat>& mat)
 {
   size_t len = mat->size_[0] * mat->size_[1];
 
@@ -28,7 +32,7 @@ int CopyToDevice(std::shared_ptr<Mat>& mat)
   return 0;
 }
 
-int CopyToHost(std::shared_ptr<Mat>& mat)
+int CopyToHost(shared_ptr<Mat>& mat)
 {
   size_t len = mat->size_[0] * mat->size_[1];
 
@@ -156,8 +160,8 @@ void MathCuda::Deinit()
   cudaThreadExit();
 }
 
-int MathCuda::Mul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                  std::shared_ptr<Mat>& out)
+int MathCuda::Mul(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                  shared_ptr<Mat>& out)
 {
   int m = mat1->size_[0];
   int k2 = mat1->size_[1];
@@ -177,9 +181,7 @@ int MathCuda::Mul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   // Process small matrices on cpu.
   if (m == 1 || n == 1 || k == 1)
   {
-    SgemmCpu(true, false, false, m, n, k, alpha, &mat1->data_[0],
-             mat1->size_[1], &mat2->data_[0], mat2->size_[1], beta,
-             &out->data_[0], out->size_[1]);
+    math_cpu->Mul(mat1, mat2, out);
   }
   else
   {
@@ -206,8 +208,8 @@ int MathCuda::Mul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCuda::Add(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                  std::shared_ptr<Mat>& out)
+int MathCuda::Add(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                  shared_ptr<Mat>& out)
 {
   int m = mat1->size_[0];
   int k = mat2->size_[0];
@@ -219,10 +221,7 @@ int MathCuda::Add(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   // Process small matrices on cpu.
   if (m == 1 || n == 1 || k == 1)
   {
-    for (int i = 0; i < mat1->data_.size(); i++)
-    {
-      out->data_[i] = mat1->data_[i] + mat2->data_[i];
-    }
+    math_cpu->Add(mat1, mat2, out);
   }
   else
   {
@@ -249,8 +248,8 @@ int MathCuda::Add(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCuda::ElmtMul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                      std::shared_ptr<Mat>& out)
+int MathCuda::ElmtMul(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                      shared_ptr<Mat>& out)
 {
   CopyToDevice(mat1);
   CopyToDevice(mat2);
@@ -278,55 +277,27 @@ int MathCuda::ElmtMul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCuda::AddDeriv(std::shared_ptr<Mat>& mat1d, std::shared_ptr<Mat>& mat2d,
-                       std::shared_ptr<Mat>& out)
+int MathCuda::AddDeriv(shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                       shared_ptr<Mat>& out)
 {
-  for (int i = 0; i < mat1d->data_.size(); i++)
-  {
-    float curr = out->data_[i];
-    mat1d->data_[i] += curr;
-    mat2d->data_[i] += curr;
-  }
-  return 0;
+  return math_cpu->AddDeriv(mat1d, mat2d, out);
 }
 
-int MathCuda::ElmtMulDeriv(std::shared_ptr<Mat>& mat1,
-                           std::shared_ptr<Mat>& mat2,
-                           std::shared_ptr<Mat>& mat1d,
-                           std::shared_ptr<Mat>& mat2d,
-                           std::shared_ptr<Mat>& out)
+int MathCuda::ElmtMulDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                           shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                           shared_ptr<Mat>& out)
 {
-  for (int i = 0; i < mat1->data_.size(); i++)
-  {
-    float curr = out->data_[i];
-    mat1d->data_[i] += mat2->data_[i] * curr;
-    mat2d->data_[i] += mat1->data_[i] * curr;
-  }
-  return 0;
+  return math_cpu->ElmtMulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
-int MathCuda::MulDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                       std::shared_ptr<Mat>& mat1d, std::shared_ptr<Mat>& mat2d,
-                       std::shared_ptr<Mat>& out)
+int MathCuda::MulDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                       shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                       shared_ptr<Mat>& out)
 {
-  int mat1_size1 = mat1->size_[1];
-  int mat2_size1 = mat2->size_[1];
-  for (int i = 0; i < mat1->size_[0]; i++)
-  {  // loop over rows of m1
-    for (int j = 0; j < mat2_size1; j++)
-    {  // loop over cols of m2
-      for (int k = 0; k < mat1_size1; k++)
-      {  // dot product loop
-        float b = out->data_[mat2_size1 * i + j];
-        mat1d->data_[mat1_size1 * i + k] += mat2->data_[mat2_size1 * k + j] * b;
-        mat2d->data_[mat2_size1 * k + j] += mat1->data_[mat1_size1 * i + k] * b;
-      }
-    }
-  }
-  return 0;
+  return math_cpu->MulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
-int MathCuda::Relu(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathCuda::Relu(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
   unsigned int len = mat->size_[0] * mat->size_[1];
 
@@ -349,7 +320,7 @@ int MathCuda::Relu(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
   return 0;
 }
 
-int MathCuda::Sigm(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathCuda::Sigm(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
   unsigned int len = mat->size_[0] * mat->size_[1];
 
@@ -372,7 +343,7 @@ int MathCuda::Sigm(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
   return 0;
 }
 
-int MathCuda::Tanh(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathCuda::Tanh(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
   unsigned int len = mat->size_[0] * mat->size_[1];
 
@@ -395,8 +366,8 @@ int MathCuda::Tanh(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
   return 0;
 }
 
-int MathCuda::ReluDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                        std::shared_ptr<Mat>& out)
+int MathCuda::ReluDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                        shared_ptr<Mat>& out)
 {
   int len = mat1->size_[0] * mat1->size_[1];
 
@@ -422,8 +393,8 @@ int MathCuda::ReluDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCuda::SigmDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                        std::shared_ptr<Mat>& out)
+int MathCuda::SigmDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                        shared_ptr<Mat>& out)
 {
   int len = mat1->size_[0] * mat1->size_[1];
 
@@ -449,8 +420,8 @@ int MathCuda::SigmDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCuda::TanhDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                        std::shared_ptr<Mat>& out)
+int MathCuda::TanhDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                        shared_ptr<Mat>& out)
 {
   int len = mat1->size_[0] * mat1->size_[1];
 
@@ -474,4 +445,9 @@ int MathCuda::TanhDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   cudaFree(mat1->data_device_);
 
   return 0;
+}
+
+shared_ptr<Mat> MathCuda::Softmax(std::shared_ptr<Mat>& mat)
+{
+  return math_cpu->Softmax(mat);
 }

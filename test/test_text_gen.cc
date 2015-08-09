@@ -11,7 +11,8 @@ int main(int argc, char *argv[])
 {
   srand(6);
 
-  //math = shared_ptr<Math>(new MathCuda(0));
+  // math = shared_ptr<Math>(new MathCuda(0));
+  // math = shared_ptr<Math>(new MathBlas);
   math = shared_ptr<Math>(new MathCpu);
   math->Init();
 
@@ -77,7 +78,7 @@ int main(int argc, char *argv[])
       printf("%u epoch, cost: %.3f, time: %.3f s\n", num_epoch, cost_epoch,
              time_epoch);
       char tmp[10];
-      sprintf(tmp, "%f\n", cost_epoch);
+      sprintf(tmp, "%.6f\n", cost_epoch);
       output += tmp;
       cost_epoch = 0;
 

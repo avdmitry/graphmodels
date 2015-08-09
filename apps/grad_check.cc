@@ -79,8 +79,8 @@ int main(int argc, char *argv[])
       float relerr = (grad_num - grad_ana) / (fabs(grad_num) + fabs(grad_ana));
       if (relerr > 1e-1)
       {
-        printf("%lu: numeric: %f, analytic: %f, err: %f\n", j, grad_num, grad_ana,
-               relerr);
+        printf("%lu: numeric: %f, analytic: %f, err: %f\n", j, grad_num,
+               grad_ana, relerr);
       }
     }
   }

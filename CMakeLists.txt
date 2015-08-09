@@ -13,7 +13,7 @@ file(GLOB_RECURSE hdrs include/*.h*)
 include_directories(include)
 add_library(graphmodels ${srcs} ${test} ${hdrs})
 default_properties(graphmodels)
-set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_FLAGS "-O3 -ffast-math -std=c++11")
 
 add_subdirectory(math)
 

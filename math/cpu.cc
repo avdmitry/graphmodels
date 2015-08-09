@@ -4,6 +4,8 @@
 #include <math.h>
 #include <float.h>
 
+using namespace std;
+
 void SgemmCpu(bool rowMajor, bool TransA, bool TransB, int M, int N, int K,
               float alpha, float* A, int lda, float* B, int ldb, float beta,
               float* C, int ldc)
@@ -34,9 +36,9 @@ void SgemmCpu(bool rowMajor, bool TransA, bool TransB, int M, int N, int K,
 
   if (!rowMajor)
   {
-    std::swap(dia, dla);
-    std::swap(djb, dlb);
-    std::swap(dic, djc);
+    swap(dia, dla);
+    swap(djb, dlb);
+    swap(dic, djc);
   }
 
   for (int i = 0, ia = 0, ic = 0; i < M; ++i, ia += dia, ic += djc)
@@ -62,8 +64,8 @@ void MathCpu::Deinit()
 {
 }
 
-int MathCpu::Add(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                 std::shared_ptr<Mat>& out)
+int MathCpu::Add(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                 shared_ptr<Mat>& out)
 {
   for (int i = 0; i < mat1->data_.size(); i++)
   {
@@ -72,8 +74,8 @@ int MathCpu::Add(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCpu::ElmtMul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                     std::shared_ptr<Mat>& out)
+int MathCpu::ElmtMul(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                     shared_ptr<Mat>& out)
 {
   for (int i = 0; i < mat1->data_.size(); i++)
   {
@@ -82,8 +84,8 @@ int MathCpu::ElmtMul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCpu::Mul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                 std::shared_ptr<Mat>& out)
+int MathCpu::Mul(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                 shared_ptr<Mat>& out)
 {
   int m = mat1->size_[0];
   int k2 = mat1->size_[1];
@@ -106,8 +108,8 @@ int MathCpu::Mul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCpu::AddDeriv(std::shared_ptr<Mat>& mat1d, std::shared_ptr<Mat>& mat2d,
-                      std::shared_ptr<Mat>& out)
+int MathCpu::AddDeriv(shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                      shared_ptr<Mat>& out)
 {
   for (int i = 0; i < mat1d->data_.size(); i++)
   {
@@ -118,11 +120,9 @@ int MathCpu::AddDeriv(std::shared_ptr<Mat>& mat1d, std::shared_ptr<Mat>& mat2d,
   return 0;
 }
 
-int MathCpu::ElmtMulDeriv(std::shared_ptr<Mat>& mat1,
-                          std::shared_ptr<Mat>& mat2,
-                          std::shared_ptr<Mat>& mat1d,
-                          std::shared_ptr<Mat>& mat2d,
-                          std::shared_ptr<Mat>& out)
+int MathCpu::ElmtMulDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                          shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                          shared_ptr<Mat>& out)
 {
   for (int i = 0; i < mat1->data_.size(); i++)
   {
@@ -133,9 +133,9 @@ int MathCpu::ElmtMulDeriv(std::shared_ptr<Mat>& mat1,
   return 0;
 }
 
-int MathCpu::MulDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                      std::shared_ptr<Mat>& mat1d, std::shared_ptr<Mat>& mat2d,
-                      std::shared_ptr<Mat>& out)
+int MathCpu::MulDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                      shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                      shared_ptr<Mat>& out)
 {
   int mat1_size1 = mat1->size_[1];
   int mat2_size1 = mat2->size_[1];
@@ -154,16 +154,16 @@ int MathCpu::MulDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCpu::Relu(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathCpu::Relu(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
   for (int i = 0; i < mat->data_.size(); i++)
   {
-    out->data_[i] = std::max(0.0f, mat->data_[i]);
+    out->data_[i] = max(0.0f, mat->data_[i]);
   }
   return 0;
 }
 
-int MathCpu::Sigm(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathCpu::Sigm(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
   for (int i = 0; i < mat->data_.size(); i++)
   {
@@ -172,7 +172,7 @@ int MathCpu::Sigm(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
   return 0;
 }
 
-int MathCpu::Tanh(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathCpu::Tanh(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
   for (int i = 0; i < mat->data_.size(); i++)
   {
@@ -181,8 +181,8 @@ int MathCpu::Tanh(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
   return 0;
 }
 
-int MathCpu::ReluDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                       std::shared_ptr<Mat>& out)
+int MathCpu::ReluDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                       shared_ptr<Mat>& out)
 {
   for (size_t i = 0; i < mat1->data_.size(); i++)
   {
@@ -194,8 +194,8 @@ int MathCpu::ReluDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCpu::SigmDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                       std::shared_ptr<Mat>& out)
+int MathCpu::SigmDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                       shared_ptr<Mat>& out)
 {
   for (size_t i = 0; i < mat1->data_.size(); i++)
   {
@@ -205,8 +205,8 @@ int MathCpu::SigmDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathCpu::TanhDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                       std::shared_ptr<Mat>& out)
+int MathCpu::TanhDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                       shared_ptr<Mat>& out)
 {
   for (size_t i = 0; i < mat1->data_.size(); i++)
   {
@@ -214,4 +214,30 @@ int MathCpu::TanhDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
     out->data_[i] += (1.0 - mwi * mwi) * mat1->data_[i];
   }
   return 0;
+}
+
+shared_ptr<Mat> MathCpu::Softmax(std::shared_ptr<Mat>& mat)
+{
+  shared_ptr<Mat> out(new Mat(mat->size_[0], mat->size_[1]));
+  float maxval = mat->data_[0];
+  for (int i = 0; i < mat->data_.size(); i++)
+  {
+    if (mat->data_[i] > maxval)
+    {
+      maxval = mat->data_[i];
+    }
+  }
+
+  float sum = 0.0;
+  for (int i = 0; i < out->data_.size(); i++)
+  {
+    out->data_[i] = exp(mat->data_[i] - maxval);
+    sum += out->data_[i];
+  }
+  for (int i = 0; i < out->data_.size(); i++)
+  {
+    out->data_[i] /= sum;
+  }
+
+  return out;
 }

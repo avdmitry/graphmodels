@@ -12,7 +12,8 @@ class EltMulOp : public Object
     assert(mat1->w_->data_.size() == mat2->w_->data_.size());
     mat1_ = mat1;
     mat2_ = mat2;
-    out_ = std::shared_ptr<MatWdw>(new MatWdw(mat1_->size_[0], mat1_->size_[1]));
+    out_ =
+        std::shared_ptr<MatWdw>(new MatWdw(mat1_->size_[0], mat1_->size_[1]));
     *out = out_;
   }
 
@@ -25,8 +26,7 @@ class EltMulOp : public Object
 
   void Backward()
   {
-    math->ElmtMulDeriv(mat1_->w_, mat2_->w_, mat1_->dw_,
-                       mat2_->dw_, out_->dw_);
+    math->ElmtMulDeriv(mat1_->w_, mat2_->w_, mat1_->dw_, mat2_->dw_, out_->dw_);
   }
 
   void ClearDw()

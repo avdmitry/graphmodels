@@ -5,6 +5,12 @@
 
 #include <cblas.h>
 
+#include "cpu.h"  // SgemmCpu, default implementation
+
+using namespace std;
+
+static shared_ptr<MathCpu> math_cpu(new MathCpu);
+
 void SgemmBlas(bool rowMajor, bool TransA, bool TransB, int M, int N, int K,
                float alpha, float* A, int lda, float* B, int ldb, float beta,
                float* C, int ldc)
@@ -48,8 +54,8 @@ void MathBlas::Deinit()
 {
 }
 
-int MathBlas::Mul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                  std::shared_ptr<Mat>& out)
+int MathBlas::Mul(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                  shared_ptr<Mat>& out)
 {
   int m = mat1->size_[0];
   int k2 = mat1->size_[1];
@@ -71,8 +77,8 @@ int MathBlas::Mul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathBlas::Add(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                  std::shared_ptr<Mat>& out)
+int MathBlas::Add(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                  shared_ptr<Mat>& out)
 {
   float alpha = 1.0f;
   cblas_scopy(out->data_.size(), &mat1->data_[0], 1, &out->data_[0], 1);
@@ -80,8 +86,8 @@ int MathBlas::Add(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathBlas::ElmtMul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                      std::shared_ptr<Mat>& out)
+int MathBlas::ElmtMul(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                      shared_ptr<Mat>& out)
 {
   int m = mat1->size_[0] * mat1->size_[1];
 
@@ -92,113 +98,61 @@ int MathBlas::ElmtMul(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
   return 0;
 }
 
-int MathBlas::AddDeriv(std::shared_ptr<Mat>& mat1d, std::shared_ptr<Mat>& mat2d,
-                       std::shared_ptr<Mat>& out)
+int MathBlas::AddDeriv(shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                       shared_ptr<Mat>& out)
 {
-  for (int i = 0; i < mat1d->data_.size(); i++)
-  {
-    float curr = out->data_[i];
-    mat1d->data_[i] += curr;
-    mat2d->data_[i] += curr;
-  }
-  return 0;
+  return math_cpu->AddDeriv(mat1d, mat2d, out);
 }
 
-int MathBlas::ElmtMulDeriv(std::shared_ptr<Mat>& mat1,
-                           std::shared_ptr<Mat>& mat2,
-                           std::shared_ptr<Mat>& mat1d,
-                           std::shared_ptr<Mat>& mat2d,
-                           std::shared_ptr<Mat>& out)
+int MathBlas::ElmtMulDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                           shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                           shared_ptr<Mat>& out)
 {
-  for (int i = 0; i < mat1->data_.size(); i++)
-  {
-    float curr = out->data_[i];
-    mat1d->data_[i] += mat2->data_[i] * curr;
-    mat2d->data_[i] += mat1->data_[i] * curr;
-  }
-  return 0;
+  return math_cpu->ElmtMulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
-int MathBlas::MulDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                       std::shared_ptr<Mat>& mat1d, std::shared_ptr<Mat>& mat2d,
-                       std::shared_ptr<Mat>& out)
+int MathBlas::MulDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                       shared_ptr<Mat>& mat1d, shared_ptr<Mat>& mat2d,
+                       shared_ptr<Mat>& out)
 {
-  int mat1_size1 = mat1->size_[1];
-  int mat2_size1 = mat2->size_[1];
-  for (int i = 0; i < mat1->size_[0]; i++)
-  {  // loop over rows of m1
-    for (int j = 0; j < mat2_size1; j++)
-    {  // loop over cols of m2
-      for (int k = 0; k < mat1_size1; k++)
-      {  // dot product loop
-        float b = out->data_[mat2_size1 * i + j];
-        mat1d->data_[mat1_size1 * i + k] += mat2->data_[mat2_size1 * k + j] * b;
-        mat2d->data_[mat2_size1 * k + j] += mat1->data_[mat1_size1 * i + k] * b;
-      }
-    }
-  }
-  return 0;
+  return math_cpu->MulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
 // Activation functions here currently the same as for Cpu.
-int MathBlas::Relu(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathBlas::Relu(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
-  for (int i = 0; i < mat->data_.size(); i++)
-  {
-    out->data_[i] = std::max(0.0f, mat->data_[i]);
-  }
-  return 0;
+  return math_cpu->Relu(mat, out);
 }
 
-int MathBlas::Sigm(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathBlas::Sigm(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
-  for (int i = 0; i < mat->data_.size(); i++)
-  {
-    out->data_[i] = 1.0 / (1 + exp(-mat->data_[i]));
-  }
-  return 0;
+  return math_cpu->Sigm(mat, out);
 }
 
-int MathBlas::Tanh(std::shared_ptr<Mat>& mat, std::shared_ptr<Mat>& out)
+int MathBlas::Tanh(shared_ptr<Mat>& mat, shared_ptr<Mat>& out)
 {
-  for (int i = 0; i < mat->data_.size(); i++)
-  {
-    out->data_[i] = tanh(mat->data_[i]);
-  }
-  return 0;
+  return math_cpu->Tanh(mat, out);
 }
 
-int MathBlas::ReluDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                        std::shared_ptr<Mat>& out)
+int MathBlas::ReluDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                        shared_ptr<Mat>& out)
 {
-  for (size_t i = 0; i < mat1->data_.size(); i++)
-  {
-    if (mat2->data_[i] > 0)
-    {
-      out->data_[i] += mat1->data_[i];
-    }
-  }
-  return 0;
+  return math_cpu->ReluDeriv(mat1, mat2, out);
 }
 
-int MathBlas::SigmDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                        std::shared_ptr<Mat>& out)
+int MathBlas::SigmDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                        shared_ptr<Mat>& out)
 {
-  for (size_t i = 0; i < mat1->data_.size(); i++)
-  {
-    float mwi = mat2->data_[i];
-    out->data_[i] += mwi * (1.0 - mwi) * mat1->data_[i];
-  }
-  return 0;
+  return math_cpu->SigmDeriv(mat1, mat2, out);
 }
 
-int MathBlas::TanhDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
-                        std::shared_ptr<Mat>& out)
+int MathBlas::TanhDeriv(shared_ptr<Mat>& mat1, shared_ptr<Mat>& mat2,
+                        shared_ptr<Mat>& out)
 {
-  for (size_t i = 0; i < mat1->data_.size(); i++)
-  {
-    float mwi = mat2->data_[i];
-    out->data_[i] += (1.0 - mwi * mwi) * mat1->data_[i];
-  }
-  return 0;
+  return math_cpu->TanhDeriv(mat1, mat2, out);
+}
+
+shared_ptr<Mat> MathBlas::Softmax(std::shared_ptr<Mat>& mat)
+{
+  return math_cpu->Softmax(mat);
 }

@@ -7,7 +7,8 @@
 class ExtractRowOp : public Object
 {
  public:
-  ExtractRowOp(std::shared_ptr<MatWdw> &mat, int idx, std::shared_ptr<MatWdw> *out)
+  ExtractRowOp(std::shared_ptr<MatWdw> &mat, int idx,
+               std::shared_ptr<MatWdw> *out)
   {
     assert(idx >= 0 && idx < mat->size_[0]);
     mat_ = mat;
@@ -34,8 +35,9 @@ class ExtractRowOp : public Object
     }
   }
 
-  void ClearDw() {
-      std::fill(mat_->dw_->data_.begin(), mat_->dw_->data_.end(), 0);
+  void ClearDw()
+  {
+    std::fill(mat_->dw_->data_.begin(), mat_->dw_->data_.end(), 0);
   }
 
   int idx_;

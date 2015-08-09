@@ -31,32 +31,6 @@ shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev)
   return mat;
 }
 
-shared_ptr<Mat> Softmax(std::shared_ptr<Mat> &mat)
-{
-  shared_ptr<Mat> out(new Mat(mat->size_[0], mat->size_[1]));
-  float maxval = mat->data_[0];
-  for (int i = 0; i < mat->data_.size(); i++)
-  {
-    if (mat->data_[i] > maxval)
-    {
-      maxval = mat->data_[i];
-    }
-  }
-
-  float sum = 0.0;
-  for (int i = 0; i < out->data_.size(); i++)
-  {
-    out->data_[i] = exp(mat->data_[i] - maxval);
-    sum += out->data_[i];
-  }
-  for (int i = 0; i < out->data_.size(); i++)
-  {
-    out->data_[i] /= sum;
-  }
-
-  return out;
-}
-
 // Argmax of array.
 int MaxIdx(const vector<float> &w)
 {

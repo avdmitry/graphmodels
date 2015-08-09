@@ -47,6 +47,8 @@ class Math
                         std::shared_ptr<Mat>& out) = 0;
   virtual int TanhDeriv(std::shared_ptr<Mat>& mat1, std::shared_ptr<Mat>& mat2,
                         std::shared_ptr<Mat>& out) = 0;
+
+  virtual std::shared_ptr<Mat> Softmax(std::shared_ptr<Mat>& mat) = 0;
 };
 
 #include "cpu.h"

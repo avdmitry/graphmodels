@@ -153,8 +153,6 @@ std::shared_ptr<MatWdw> RandMat(int n, int d, float l, float r);
 
 std::shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev);
 
-std::shared_ptr<Mat> Softmax(std::shared_ptr<Mat> &mat);
-
 int MaxIdx(const std::vector<float> &w);
 
 int SampleIdx(std::vector<float> &w);

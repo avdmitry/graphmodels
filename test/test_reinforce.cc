@@ -12,7 +12,8 @@ int main(int argc, char *argv[])
   // srand(time(NULL));
   srand(0);
 
-  //math = shared_ptr<Math>(new MathCuda(0));
+  // math = shared_ptr<Math>(new MathCuda(0));
+  // math = shared_ptr<Math>(new MathBlas);
   math = shared_ptr<Math>(new MathCpu);
   math->Init();
 
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
   shared_ptr<DQNAgent> agent(
       new DQNAgent(env->GetNumStates(), env->GetMaxNumActions()));
 
-  vector<float> expected = {-1.430, -1.017, -0.646, -1.044};
+  vector<string> expected = {"-1.430", "-1.017", "-0.646", "-1.044"};
   float reward = 0;
   static const int kCompareAfter = 1000;
   int i = 0;
@@ -38,10 +39,12 @@ int main(int argc, char *argv[])
     if (step % kCompareAfter == 0 && step != 0)
     {
       float curr_reward = reward / kCompareAfter;
-      if (curr_reward != expected[i])
+      char curr_reward_str[10];
+      sprintf(curr_reward_str, "%.3f", curr_reward);
+      if (expected[i] != curr_reward_str)
       {
-        printf("test failed on %u step: got: %f, expect: %f\n", i, curr_reward,
-               expected[i]);
+        printf("test failed on %u step: got: %s, expect: %s\n", i,
+               curr_reward_str, expected[i].c_str());
         exit(-1);
       }
       reward = 0;

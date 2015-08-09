@@ -13,7 +13,8 @@ class AddOp : public Object
     assert(mat1->w_->data_.size() == mat2->w_->data_.size());
     mat1_ = mat1;
     mat2_ = mat2;
-    out_ = std::shared_ptr<MatWdw>(new MatWdw(mat1_->size_[0], mat1_->size_[1]));
+    out_ =
+        std::shared_ptr<MatWdw>(new MatWdw(mat1_->size_[0], mat1_->size_[1]));
     *out = out_;
   }
 
@@ -29,9 +30,10 @@ class AddOp : public Object
     math->AddDeriv(mat1_->dw_, mat2_->dw_, out_->dw_);
   }
 
-  void ClearDw() {
-      std::fill(mat1_->dw_->data_.begin(), mat1_->dw_->data_.end(), 0);
-      std::fill(mat2_->dw_->data_.begin(), mat2_->dw_->data_.end(), 0);
+  void ClearDw()
+  {
+    std::fill(mat1_->dw_->data_.begin(), mat1_->dw_->data_.end(), 0);
+    std::fill(mat2_->dw_->data_.begin(), mat2_->dw_->data_.end(), 0);
   }
 
   std::shared_ptr<MatWdw> mat1_, mat2_;

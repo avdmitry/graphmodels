@@ -50,8 +50,8 @@ void Learn(shared_ptr<Model> &model)
     {
       // Rmsprop adaptive learning rate.
       float mdwi = mat->dw_->data_[i];
-      mat_prev->w_->data_[i] =
-          decay_rate * mat_prev->w_->data_[i] + (1.0 - decay_rate) * mdwi * mdwi;
+      mat_prev->w_->data_[i] = decay_rate * mat_prev->w_->data_[i] +
+                               (1.0 - decay_rate) * mdwi * mdwi;
 
       // Gradient clip.
       if (mdwi > clipval)
@@ -64,8 +64,9 @@ void Learn(shared_ptr<Model> &model)
       }
 
       // Update (and regularize).
-      mat->w_->data_[i] += -learning_rate * mdwi / sqrt(mat_prev->w_->data_[i] + smooth_eps) -
-                   regc * mat->w_->data_[i];
+      mat->w_->data_[i] +=
+          -learning_rate * mdwi / sqrt(mat_prev->w_->data_[i] + smooth_eps) -
+          regc * mat->w_->data_[i];
       mat->dw_->data_[i] = 0;
     }
   }
@@ -96,7 +97,7 @@ float CalcCost(shared_ptr<Graph> &graph, shared_ptr<Model> &model, string &sent,
     graph->Forward();
     shared_ptr<MatWdw> logprobs = model->output_;
 
-    shared_ptr<Mat> probs = Softmax(logprobs->w_);
+    shared_ptr<Mat> probs = math->Softmax(logprobs->w_);
     cost += -log(probs->data_[idx_target]);
 
     // Write gradients into log probabilities.
@@ -145,7 +146,7 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
       }
     }
 
-    shared_ptr<Mat> probs = Softmax(logprobs->w_);
+    shared_ptr<Mat> probs = math->Softmax(logprobs->w_);
     if (sample_idx)
     {
       idx = SampleIdx(probs->data_);
