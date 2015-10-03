@@ -1,6 +1,10 @@
 #include "text_gen_utils.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::shared_ptr;
+using std::ifstream;
+using std::set;
 
 void LoadData(const string &file_name, shared_ptr<Data> &data)
 {
@@ -35,45 +39,7 @@ void LoadData(const string &file_name, shared_ptr<Data> &data)
   }
 }
 
-void Learn(shared_ptr<Model> &model)
-{
-  float decay_rate = 0.999;
-  float smooth_eps = 1e-8;
-  float regc = 0.000001;        // L2 regularization strength
-  float learning_rate = 0.001;  // learning rate, 0.01 for lstm, 0.001 for rnn
-  float clipval = 5.0;          // clip gradients at this value
-  for (size_t j = 0; j < model->params_.size(); ++j)
-  {
-    shared_ptr<MatWdw> &mat = model->params_[j];
-    shared_ptr<MatWdw> &mat_prev = model->params_prev_[j];
-    for (size_t i = 0; i < mat->w_->data_.size(); ++i)
-    {
-      // Rmsprop adaptive learning rate.
-      float mdwi = mat->dw_->data_[i];
-      mat_prev->w_->data_[i] = decay_rate * mat_prev->w_->data_[i] +
-                               (1.0 - decay_rate) * mdwi * mdwi;
-
-      // Gradient clip.
-      if (mdwi > clipval)
-      {
-        mdwi = clipval;
-      }
-      if (mdwi < -clipval)
-      {
-        mdwi = -clipval;
-      }
-
-      // Update (and regularize).
-      mat->w_->data_[i] +=
-          -learning_rate * mdwi / sqrt(mat_prev->w_->data_[i] + smooth_eps) -
-          regc * mat->w_->data_[i];
-      mat->dw_->data_[i] = 0;
-    }
-  }
-}
-
-float CalcCost(shared_ptr<Graph> &graph, shared_ptr<Model> &model, string &sent,
-               shared_ptr<Data> &data)
+float CalcCost(shared_ptr<Model> &model, string &sent, shared_ptr<Data> &data)
 {
   model->ClearPrevState();
 
@@ -92,9 +58,9 @@ float CalcCost(shared_ptr<Graph> &graph, shared_ptr<Model> &model, string &sent,
       idx_target = data->letter_to_index_[sent[i + 1]];
     }
 
-    model->Create(graph, idx_source);
+    model->Create(idx_source);
 
-    graph->Forward();
+    model->graph_->Forward();
     shared_ptr<MatWdw> logprobs = model->output_;
 
     shared_ptr<Mat> probs = math->Softmax(logprobs->w_);
@@ -111,7 +77,7 @@ float CalcCost(shared_ptr<Graph> &graph, shared_ptr<Model> &model, string &sent,
 string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
                        bool sample_idx, float temperature)
 {
-  shared_ptr<Graph> graph(new Graph);
+  model->graph_ = shared_ptr<Graph>(new Graph);
   string sent;
 
   model->ClearPrevState();
@@ -128,9 +94,9 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
       idx = data->letter_to_index_[sent[sent.length() - 1]];
     }
 
-    model->Create(graph, idx);
+    model->Create(idx);
 
-    graph->Forward();
+    model->graph_->Forward();
     shared_ptr<MatWdw> logprobs = model->output_;
 
     // Sample predicted letter.

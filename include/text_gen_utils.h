@@ -9,10 +9,8 @@ static const int kEmbedSize = 5;
 
 void LoadData(const std::string &file_name, std::shared_ptr<Data> &data);
 
-void Learn(std::shared_ptr<Model> &model);
-
-float CalcCost(std::shared_ptr<Graph> &graph, std::shared_ptr<Model> &model,
-               std::string &sent, std::shared_ptr<Data> &data);
+float CalcCost(std::shared_ptr<Model> &model, std::string &sent,
+               std::shared_ptr<Data> &data);
 
 std::string PredictSentence(std::shared_ptr<Model> &model,
                             std::shared_ptr<Data> &data,

@@ -1,15 +1,15 @@
-#ifndef MATH_BLAS_H
-#define MATH_BLAS_H
+#ifndef MATH_CUDNN_H
+#define MATH_CUDNN_H
 
 #include "common.h"
 
-class MathBlas : public Math
+class MathCudnn : public Math
 {
  public:
-  MathBlas()
+  MathCudnn()
   {
   }
-  virtual ~MathBlas()
+  virtual ~MathCudnn()
   {
     Deinit();
   }
@@ -52,13 +52,12 @@ class MathBlas : public Math
   virtual std::shared_ptr<Mat> Softmax(std::shared_ptr<Mat> &mat);
 
   virtual int Conv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &filters_w,
-                    std::shared_ptr<Mat> &out_w, ConvParams &conv_params);
-  virtual int ConvDeriv(std::shared_ptr<Mat> &in_w,
-                         std::shared_ptr<Mat> &in_dw,
-                         std::shared_ptr<Mat> &filters_w,
-                         std::shared_ptr<Mat> &filters_dw,
-                         std::shared_ptr<Mat> &out_w,
-                         std::shared_ptr<Mat> &out_dw, ConvParams &conv_params);
+                   std::shared_ptr<Mat> &out_w, ConvParams &conv_params);
+  virtual int ConvDeriv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &in_dw,
+                        std::shared_ptr<Mat> &filters_w,
+                        std::shared_ptr<Mat> &filters_dw,
+                        std::shared_ptr<Mat> &out_w,
+                        std::shared_ptr<Mat> &out_dw, ConvParams &conv_params);
 
   virtual int MaxPool(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w,
                       ConvParams &conv_params);

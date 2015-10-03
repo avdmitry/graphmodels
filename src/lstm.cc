@@ -1,6 +1,8 @@
 #include "lstm.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::shared_ptr;
 
 Lstm::Lstm(int input_size, vector<int> hidden_sizes, int output_size)
     : hidden_sizes_(hidden_sizes)
@@ -50,7 +52,7 @@ Lstm::Lstm(int input_size, vector<int> hidden_sizes, int output_size)
   }
 }
 
-void Lstm::Create(shared_ptr<Graph> &graph, int idx)
+void Lstm::Create(int idx)
 {
   if (prev_hiddens_.size() == 0)
   {
@@ -72,7 +74,7 @@ void Lstm::Create(shared_ptr<Graph> &graph, int idx)
   input_->w_->data_[idx] = 1;
 
   shared_ptr<MatWdw> x;
-  graph->Process(shared_ptr<Object>(new MulOp(wil_, input_, &x)));
+  graph_->Process(shared_ptr<Object>(new MulOp(wil_, input_, &x)));
 
   vector<shared_ptr<MatWdw>> hidden;
   vector<shared_ptr<MatWdw>> cell;
@@ -93,52 +95,52 @@ void Lstm::Create(shared_ptr<Graph> &graph, int idx)
 
     // Input gate.
     shared_ptr<MatWdw> hi0, hi1, hi, biasi, input_gate;
-    graph->Process(shared_ptr<Object>(new MulOp(wix_[d], input_vector, &hi0)));
-    graph->Process(shared_ptr<Object>(new MulOp(wih_[d], hidden_prev, &hi1)));
-    graph->Process(shared_ptr<Object>(new AddOp(hi0, hi1, &hi)));
-    graph->Process(shared_ptr<Object>(new AddOp(hi, bi_[d], &biasi)));
-    graph->Process(shared_ptr<Object>(new SigmOp(biasi, &input_gate)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wix_[d], input_vector, &hi0)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wih_[d], hidden_prev, &hi1)));
+    graph_->Process(shared_ptr<Object>(new AddOp(hi0, hi1, &hi)));
+    graph_->Process(shared_ptr<Object>(new AddOp(hi, bi_[d], &biasi)));
+    graph_->Process(shared_ptr<Object>(new SigmOp(biasi, &input_gate)));
 
     // Forget gate.
     shared_ptr<MatWdw> hf0, hf1, hf, biasf, forget_gate;
-    graph->Process(shared_ptr<Object>(new MulOp(wfx_[d], input_vector, &hf0)));
-    graph->Process(shared_ptr<Object>(new MulOp(wfh_[d], hidden_prev, &hf1)));
-    graph->Process(shared_ptr<Object>(new AddOp(hf0, hf1, &hf)));
-    graph->Process(shared_ptr<Object>(new AddOp(hf, bf_[d], &biasf)));
-    graph->Process(shared_ptr<Object>(new SigmOp(biasf, &forget_gate)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wfx_[d], input_vector, &hf0)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wfh_[d], hidden_prev, &hf1)));
+    graph_->Process(shared_ptr<Object>(new AddOp(hf0, hf1, &hf)));
+    graph_->Process(shared_ptr<Object>(new AddOp(hf, bf_[d], &biasf)));
+    graph_->Process(shared_ptr<Object>(new SigmOp(biasf, &forget_gate)));
 
     // Output gate.
     shared_ptr<MatWdw> ho0, ho1, ho, biaso, output_gate;
-    graph->Process(shared_ptr<Object>(new MulOp(wox_[d], input_vector, &ho0)));
-    graph->Process(shared_ptr<Object>(new MulOp(woh_[d], hidden_prev, &ho1)));
-    graph->Process(shared_ptr<Object>(new AddOp(ho0, ho1, &ho)));
-    graph->Process(shared_ptr<Object>(new AddOp(ho, bo_[d], &biaso)));
-    graph->Process(shared_ptr<Object>(new SigmOp(biaso, &output_gate)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wox_[d], input_vector, &ho0)));
+    graph_->Process(shared_ptr<Object>(new MulOp(woh_[d], hidden_prev, &ho1)));
+    graph_->Process(shared_ptr<Object>(new AddOp(ho0, ho1, &ho)));
+    graph_->Process(shared_ptr<Object>(new AddOp(ho, bo_[d], &biaso)));
+    graph_->Process(shared_ptr<Object>(new SigmOp(biaso, &output_gate)));
 
     // Write operation on cells.
     shared_ptr<MatWdw> hw0, hw1, hw, biasw, cell_write;
-    graph->Process(shared_ptr<Object>(new MulOp(wcx_[d], input_vector, &hw0)));
-    graph->Process(shared_ptr<Object>(new MulOp(wch_[d], hidden_prev, &hw1)));
-    graph->Process(shared_ptr<Object>(new AddOp(hw0, hw1, &hw)));
-    graph->Process(shared_ptr<Object>(new AddOp(hw, bc_[d], &biasw)));
-    graph->Process(shared_ptr<Object>(new TanhOp(biasw, &cell_write)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wcx_[d], input_vector, &hw0)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wch_[d], hidden_prev, &hw1)));
+    graph_->Process(shared_ptr<Object>(new AddOp(hw0, hw1, &hw)));
+    graph_->Process(shared_ptr<Object>(new AddOp(hw, bc_[d], &biasw)));
+    graph_->Process(shared_ptr<Object>(new TanhOp(biasw, &cell_write)));
 
     // Compute new cell activation.
     // What do we keep from cell.
     shared_ptr<MatWdw> retain_cell, write_cell, cell_curr;
-    graph->Process(
+    graph_->Process(
         shared_ptr<Object>(new EltMulOp(forget_gate, cell_prev, &retain_cell)));
     // What do we write to cell.
-    graph->Process(
+    graph_->Process(
         shared_ptr<Object>(new EltMulOp(input_gate, cell_write, &write_cell)));
     // New cell contents.
-    graph->Process(
+    graph_->Process(
         shared_ptr<Object>(new AddOp(retain_cell, write_cell, &cell_curr)));
 
     // Compute hidden state as gated, saturated cell activations.
     shared_ptr<MatWdw> tanhc, hidden_curr;
-    graph->Process(shared_ptr<Object>(new TanhOp(cell_curr, &tanhc)));
-    graph->Process(
+    graph_->Process(shared_ptr<Object>(new TanhOp(cell_curr, &tanhc)));
+    graph_->Process(
         shared_ptr<Object>(new EltMulOp(output_gate, tanhc, &hidden_curr)));
 
     cell.emplace_back(cell_curr);
@@ -147,9 +149,9 @@ void Lstm::Create(shared_ptr<Graph> &graph, int idx)
 
   // Decoder.
   shared_ptr<MatWdw> hd;
-  graph->Process(
+  graph_->Process(
       shared_ptr<Object>(new MulOp(whd_, hidden[hidden.size() - 1], &hd)));
-  graph->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output_)));
+  graph_->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output_)));
 
   prev_hiddens_ = hidden;
   prev_cells_ = cell;

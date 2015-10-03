@@ -26,15 +26,15 @@ class MatWdw
   {
   }
 
-  MatWdw(int n, int d)
+  MatWdw(int n, int d = 1, int m = 1, int f = 1)
   {
-    // w_ = std::shared_ptr<Mat>(new Mat(n, d));
-    // dw_ = std::shared_ptr<Mat>(new Mat(n, d));
-    w_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, 1, 1})));
-    dw_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, 1, 1})));
+    w_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, m, f})));
+    dw_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, m, f})));
 
     size_.emplace_back(n);
     size_.emplace_back(d);
+    size_.emplace_back(m);
+    size_.emplace_back(f);
   }
 
   std::vector<int> size_;
@@ -124,11 +124,24 @@ class Model
   {
   }
 
-  virtual void Create(std::shared_ptr<Graph> &graph, int idx) = 0;
+  void Forward(std::shared_ptr<MatWdw> &s)
+  {
+    *input_ = *s;
+    graph_->Forward(false);
+  }
+
+  void Backward()
+  {
+    graph_->Backward(false);
+  }
+
+  virtual void Create(int idx) = 0;
 
   virtual void ClearPrevState() = 0;
 
   std::shared_ptr<MatWdw> input_, output_;
+
+  std::shared_ptr<Graph> graph_;
 
   std::vector<std::shared_ptr<MatWdw>> params_;
   std::vector<std::shared_ptr<MatWdw>> params_prev_;
@@ -151,7 +164,8 @@ inline int Randi(int l, int r)
 
 std::shared_ptr<MatWdw> RandMat(int n, int d, float l, float r);
 
-std::shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev);
+std::shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev,
+                                     int m = 1, int f = 1);
 
 int MaxIdx(const std::vector<float> &w);
 

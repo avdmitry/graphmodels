@@ -2,8 +2,12 @@
 #include "rnn.h"
 #include "lstm.h"
 #include "text_gen_utils.h"
+#include "learn.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::shared_ptr;
+using std::ifstream;
 
 string rnn_out = "";
 
@@ -63,12 +67,12 @@ int main(int argc, char *argv[])
   {
     string sent = data->sentences_[Randi(0, data->sentences_.size() - 1)];
 
-    shared_ptr<Graph> graph(new Graph);
-    cost_epoch += CalcCost(graph, model, sent, data);
+    model->graph_ = shared_ptr<Graph>(new Graph);
+    cost_epoch += CalcCost(model, sent, data);
 
-    graph->Backward();
+    model->graph_->Backward();
 
-    Learn(model);
+    LearnRmsprop(model);
 
     if (step % data->sentences_.size() == 0 && step != 0)
     {
@@ -94,8 +98,6 @@ int main(int argc, char *argv[])
       begin_time = clock();
     }
   }
-
-  math->Deinit();
 
   if (output != expected_output)
   {

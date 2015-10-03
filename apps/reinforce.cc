@@ -2,7 +2,9 @@
 #include "agent.h"
 #include "circle_world.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::shared_ptr;
 
 int main(int argc, char *argv[])
 {
@@ -37,8 +39,6 @@ int main(int argc, char *argv[])
       reward = 0;
     }
   }
-
-  math->Deinit();
 
   return 0;
 }

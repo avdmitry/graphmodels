@@ -12,8 +12,8 @@ class EltMulOp : public Object
     assert(mat1->w_->data_.size() == mat2->w_->data_.size());
     mat1_ = mat1;
     mat2_ = mat2;
-    out_ =
-        std::shared_ptr<MatWdw>(new MatWdw(mat1_->size_[0], mat1_->size_[1]));
+    out_ = std::shared_ptr<MatWdw>(new MatWdw(
+        mat1_->size_[0], mat1_->size_[1], mat1_->size_[2], mat1_->size_[3]));
     *out = out_;
   }
 

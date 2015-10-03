@@ -47,8 +47,7 @@ list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_20)
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_21)
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_30)
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_35,code=sm_35)
-#list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_50,code=sm_50)
-#list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_50,compute_50)
+list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_50,code=sm_50)
 
 file(GLOB_RECURSE srcs ./*.cc)
 file(GLOB_RECURSE scus ./*.cu*)
@@ -66,7 +65,9 @@ default_properties(math)
 
 #/usr/lib/libopenblas.so.0
 #/usr/lib/libatlas.so
-target_link_libraries(math /usr/local/cuda/lib64/libcublas.so /usr/lib/libopenblas.so.0)
+set(CUDNN_PATH "/usr/local/cuda")
+
+target_link_libraries(math /usr/local/cuda/lib64/libcublas.so /usr/lib/libopenblas.so.0 ${CUDNN_PATH}/lib64/libcudnn.so)
 
 message(STATUS " Build type:       ${CMAKE_BUILD_TYPE}")
 message("")

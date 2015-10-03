@@ -9,7 +9,7 @@ class Rnn : public Model
  public:
   Rnn(int input_size, std::vector<int> hidden_sizes, int output_size);
 
-  void Create(std::shared_ptr<Graph> &graph, int idx);
+  void Create(int idx);
 
   void GetParameters(std::vector<std::shared_ptr<MatWdw>> &params_);
 

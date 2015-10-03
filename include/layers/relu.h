@@ -8,29 +8,30 @@ class ReluOp : public Object
  public:
   ReluOp(std::shared_ptr<MatWdw> &in, std::shared_ptr<MatWdw> *out)
   {
-    mat_ = in;
-    out_ = std::shared_ptr<MatWdw>(new MatWdw(mat_->size_[0], mat_->size_[1]));
+    in_ = in;
+    out_ = std::shared_ptr<MatWdw>(
+        new MatWdw(in_->size_[0], in_->size_[1], in_->size_[2], in_->size_[3]));
     *out = out_;
   }
 
   std::shared_ptr<MatWdw> Forward()
   {
-    math->Relu(mat_->w_, out_->w_);
+    math->Relu(in_->w_, out_->w_);
 
     return out_;
   }
 
   void Backward()
   {
-    math->ReluDeriv(out_->dw_, out_->w_, mat_->dw_);
+    math->ReluDeriv(in_->dw_, out_->w_, out_->dw_);
   }
 
   void ClearDw()
   {
-    std::fill(mat_->dw_->data_.begin(), mat_->dw_->data_.end(), 0);
+    std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);
   }
 
-  std::shared_ptr<MatWdw> mat_;
+  std::shared_ptr<MatWdw> in_;
   std::shared_ptr<MatWdw> out_;
 };
 

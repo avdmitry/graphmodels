@@ -11,6 +11,7 @@ class MathCuda : public Math
   }
   virtual ~MathCuda()
   {
+    Deinit();
   }
 
   virtual void Init();
@@ -34,18 +35,37 @@ class MathCuda : public Math
                        std::shared_ptr<Mat> &mat1d, std::shared_ptr<Mat> &mat2d,
                        std::shared_ptr<Mat> &out);
 
-  virtual int Relu(std::shared_ptr<Mat> &mat, std::shared_ptr<Mat> &out);
-  virtual int Sigm(std::shared_ptr<Mat> &mat, std::shared_ptr<Mat> &out);
-  virtual int Tanh(std::shared_ptr<Mat> &mat, std::shared_ptr<Mat> &out);
+  virtual int Relu(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w);
+  virtual int Sigm(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w);
+  virtual int Tanh(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w);
 
-  virtual int ReluDeriv(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
-                        std::shared_ptr<Mat> &out);
-  virtual int SigmDeriv(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
-                        std::shared_ptr<Mat> &out);
-  virtual int TanhDeriv(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
-                        std::shared_ptr<Mat> &out);
+  virtual int ReluDeriv(std::shared_ptr<Mat> &in_dw,
+                        std::shared_ptr<Mat> &out_w,
+                        std::shared_ptr<Mat> &out_dw);
+  virtual int SigmDeriv(std::shared_ptr<Mat> &in_dw,
+                        std::shared_ptr<Mat> &out_w,
+                        std::shared_ptr<Mat> &out_dw);
+  virtual int TanhDeriv(std::shared_ptr<Mat> &in_dw,
+                        std::shared_ptr<Mat> &out_w,
+                        std::shared_ptr<Mat> &out_dw);
 
   virtual std::shared_ptr<Mat> Softmax(std::shared_ptr<Mat> &mat);
+
+  virtual int Conv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &filters_w,
+                   std::shared_ptr<Mat> &out_w, ConvParams &conv_params);
+  virtual int ConvDeriv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &in_dw,
+                        std::shared_ptr<Mat> &filters_w,
+                        std::shared_ptr<Mat> &filters_dw,
+                        std::shared_ptr<Mat> &out_w,
+                        std::shared_ptr<Mat> &out_dw, ConvParams &conv_params);
+
+  virtual int MaxPool(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w,
+                      ConvParams &conv_params);
+  virtual int MaxPoolDeriv(std::shared_ptr<Mat> &in_w,
+                           std::shared_ptr<Mat> &in_dw,
+                           std::shared_ptr<Mat> &out_w,
+                           std::shared_ptr<Mat> &out_dw,
+                           ConvParams &conv_params);
 
  private:
   int gpu_id_;

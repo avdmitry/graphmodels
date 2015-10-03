@@ -1,6 +1,8 @@
 #include "rnn.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::shared_ptr;
 
 Rnn::Rnn(int input_size, vector<int> hidden_sizes, int output_size)
     : hidden_sizes_(hidden_sizes)
@@ -38,7 +40,7 @@ Rnn::Rnn(int input_size, vector<int> hidden_sizes, int output_size)
   }
 }
 
-void Rnn::Create(shared_ptr<Graph> &graph, int idx)
+void Rnn::Create(int idx)
 {
   if (prev_hiddens_.size() == 0)
   {
@@ -53,7 +55,7 @@ void Rnn::Create(shared_ptr<Graph> &graph, int idx)
   input_->w_->data_[idx] = 1;
 
   shared_ptr<MatWdw> x;
-  graph->Process(shared_ptr<Object>(new MulOp(wil_, input_, &x)));
+  graph_->Process(shared_ptr<Object>(new MulOp(wil_, input_, &x)));
 
   vector<shared_ptr<MatWdw>> hidden;
   for (size_t d = 0; d < hidden_sizes_.size(); d++)
@@ -70,20 +72,20 @@ void Rnn::Create(shared_ptr<Graph> &graph, int idx)
     shared_ptr<MatWdw> &hidden_prev = prev_hiddens_[d];
 
     shared_ptr<MatWdw> h0, h1, h01, bias, hidden_curr;
-    graph->Process(shared_ptr<Object>(new MulOp(wxh_[d], input_vector, &h0)));
-    graph->Process(shared_ptr<Object>(new MulOp(whh_[d], hidden_prev, &h1)));
-    graph->Process(shared_ptr<Object>(new AddOp(h0, h1, &h01)));
-    graph->Process(shared_ptr<Object>(new AddOp(h01, bhh_[d], &bias)));
-    graph->Process(shared_ptr<Object>(new ReluOp(bias, &hidden_curr)));
+    graph_->Process(shared_ptr<Object>(new MulOp(wxh_[d], input_vector, &h0)));
+    graph_->Process(shared_ptr<Object>(new MulOp(whh_[d], hidden_prev, &h1)));
+    graph_->Process(shared_ptr<Object>(new AddOp(h0, h1, &h01)));
+    graph_->Process(shared_ptr<Object>(new AddOp(h01, bhh_[d], &bias)));
+    graph_->Process(shared_ptr<Object>(new ReluOp(bias, &hidden_curr)));
 
     hidden.emplace_back(hidden_curr);
   }
 
   // Decoder.
   shared_ptr<MatWdw> hd;
-  graph->Process(
+  graph_->Process(
       shared_ptr<Object>(new MulOp(whd_, hidden[hidden.size() - 1], &hd)));
-  graph->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output_)));
+  graph_->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output_)));
 
   prev_hiddens_ = hidden;
 }

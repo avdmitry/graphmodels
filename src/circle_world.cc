@@ -1,6 +1,8 @@
 #include "circle_world.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::shared_ptr;
 
 CircleWorld::CircleWorld()
 {
