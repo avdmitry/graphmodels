@@ -252,7 +252,8 @@ shared_ptr<Mat> MathCpu::Softmax(shared_ptr<Mat> &mat)
 }
 
 int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
-                  shared_ptr<Mat> &out_w, ConvParams &conv_params)
+                  shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
+                  ConvParams &conv_params)
 {
   int padding_x = conv_params.padding_x;
   int padding_y = conv_params.padding_y;
@@ -266,6 +267,7 @@ int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   int in_height = in_w->size_[1];
   float *in_w_data = &in_w->data_[0];
   float *filters_w_data = &filters_w->data_[0];
+  float *biases_w_data = &biases_w->data_[0];
   float *out_w_data = &out_w->data_[0];
 
   int out_width = (in_width + 2 * padding_x - filter_width) / stride_x + 1;
@@ -280,7 +282,7 @@ int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
       for (int out_y = 0; out_y < out_height;
            filter_start_y += stride_y, ++out_y)
       {
-        float res = 0;
+        float res = 0.0;
         for (int filter_x = 0; filter_x < filter_width; ++filter_x)
         {
           int in_x = filter_start_x + filter_x;
@@ -309,7 +311,8 @@ int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
             }
           }
         }
-        out_w_data[(filter_channel * out_height + out_y) * out_width + out_x] +=
+        res += biases_w_data[filter_channel];
+        out_w_data[(filter_channel * out_height + out_y) * out_width + out_x] =
             res;
       }
     }
@@ -320,8 +323,8 @@ int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
 
 int MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                        shared_ptr<Mat> &filters_w, shared_ptr<Mat> &filters_dw,
-                       shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
-                       ConvParams &conv_params)
+                       shared_ptr<Mat> &biases_dw, shared_ptr<Mat> &out_w,
+                       shared_ptr<Mat> &out_dw, ConvParams &conv_params)
 {
   int padding_x = conv_params.padding_x;
   int padding_y = conv_params.padding_y;
@@ -337,6 +340,7 @@ int MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   float *in_dw_data = &in_dw->data_[0];
   float *filters_w_data = &filters_w->data_[0];
   float *filters_dw_data = &filters_dw->data_[0];
+  float *biases_dw_data = &biases_dw->data_[0];
   float *out_dw_data = &out_dw->data_[0];
 
   int out_width = (in_width + 2 * padding_x - filter_width) / stride_x + 1;
@@ -385,6 +389,7 @@ int MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
             }
           }
         }
+        biases_dw_data[filter_channel] += dw;
       }
     }
   }

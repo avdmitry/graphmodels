@@ -68,6 +68,7 @@ class Object
   virtual std::shared_ptr<MatWdw> Forward() = 0;
   virtual void Backward() = 0;
   virtual void ClearDw() = 0;
+  virtual void GetParams(std::vector<std::shared_ptr<MatWdw>> &params) = 0;
 };
 
 class Graph
@@ -89,7 +90,10 @@ class Graph
     {
       forward_[i]->Forward();
     }
-    if (need_clear) forward_.clear();
+    if (need_clear)
+    {
+      forward_.clear();
+    }
   }
 
   void Backward(bool need_clear = true)
@@ -98,7 +102,10 @@ class Graph
     {
       backward_[i]->Backward();
     }
-    if (need_clear) backward_.clear();
+    if (need_clear)
+    {
+      backward_.clear();
+    }
   }
 
   void ClearDw()
@@ -106,6 +113,14 @@ class Graph
     for (int i = backward_.size() - 1; i >= 0; --i)
     {
       backward_[i]->ClearDw();
+    }
+  }
+
+  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  {
+    for (int i = backward_.size() - 1; i >= 0; --i)
+    {
+      backward_[i]->GetParams(params);
     }
   }
 
@@ -124,9 +139,8 @@ class Model
   {
   }
 
-  void Forward(std::shared_ptr<MatWdw> &s)
+  void Forward()
   {
-    *input_ = *s;
     graph_->Forward(false);
   }
 
@@ -164,13 +178,15 @@ inline int Randi(int l, int r)
 
 std::shared_ptr<MatWdw> RandMat(int n, int d, float l, float r);
 
-std::shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev,
-                                     int m = 1, int f = 1);
+std::shared_ptr<MatWdw> RandMatGauss(int n, int d, int m, int f, float mean,
+                                     float stddev);
 
 int MaxIdx(const std::vector<float> &w);
 
 int SampleIdx(std::vector<float> &w);
 
 void Trim(std::string *str);
+
+float SoftmaxLoss(std::shared_ptr<Model> &net, int idx_target);
 
 #endif

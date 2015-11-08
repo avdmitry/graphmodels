@@ -5,10 +5,8 @@
 using std::string;
 using std::vector;
 using std::shared_ptr;
-using std::default_random_engine;
-using std::normal_distribution;
 
-shared_ptr<default_random_engine> engine(new default_random_engine);
+shared_ptr<std::default_random_engine> engine(new std::default_random_engine);
 
 shared_ptr<MatWdw> RandMat(int n, int d, float l, float r)
 {
@@ -22,12 +20,12 @@ shared_ptr<MatWdw> RandMat(int n, int d, float l, float r)
   return mat;
 }
 
-shared_ptr<MatWdw> RandMatGauss(int n, int d, float mean, float stddev, int m,
-                                int f)
+shared_ptr<MatWdw> RandMatGauss(int n, int d, int m, int f, float mean,
+                                float stddev)
 {
   shared_ptr<MatWdw> mat(new MatWdw(n, d, m, f));
 
-  normal_distribution<float> distribution(mean, stddev);
+  std::normal_distribution<float> distribution(mean, stddev);
   for (int i = 0; i < mat->w_->data_.size(); ++i)
   {
     mat->w_->data_[i] = distribution(*engine);
@@ -85,4 +83,13 @@ void Trim(string *str)
   {
     *str = str->substr(0, endpos + 1);
   }
+}
+
+float SoftmaxLoss(shared_ptr<Model> &net, int idx_target)
+{
+  shared_ptr<MatWdw> &logprobs = net->output_;
+  shared_ptr<Mat> probs = math->Softmax(logprobs->w_);
+  logprobs->dw_->data_ = probs->data_;
+  logprobs->dw_->data_[idx_target] -= 1;
+  return -log(probs->data_[idx_target]);
 }

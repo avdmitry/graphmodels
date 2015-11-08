@@ -65,9 +65,9 @@ default_properties(math)
 
 #/usr/lib/libopenblas.so.0
 #/usr/lib/libatlas.so
-set(CUDNN_PATH "/usr/local/cuda")
+set(CUDNN_PATH "/usr/local/cuda/lib64")
 
-target_link_libraries(math /usr/local/cuda/lib64/libcublas.so /usr/lib/libopenblas.so.0 ${CUDNN_PATH}/lib64/libcudnn.so)
+target_link_libraries(math /usr/local/cuda/lib64/libcublas.so /usr/lib/libopenblas.so.0 ${CUDNN_PATH}/libcudnn.so)
 
 message(STATUS " Build type:       ${CMAKE_BUILD_TYPE}")
 message("")

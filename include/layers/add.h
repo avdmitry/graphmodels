@@ -10,6 +10,7 @@ class AddOp : public Object
   AddOp(std::shared_ptr<MatWdw> &mat1, std::shared_ptr<MatWdw> &mat2,
         std::shared_ptr<MatWdw> *out)
   {
+    //printf("%lu %lu\n", mat1->w_->data_.size(), mat2->w_->data_.size());
     assert(mat1->w_->data_.size() == mat2->w_->data_.size());
     mat1_ = mat1;
     mat2_ = mat2;
@@ -34,6 +35,10 @@ class AddOp : public Object
   {
     std::fill(mat1_->dw_->data_.begin(), mat1_->dw_->data_.end(), 0);
     std::fill(mat2_->dw_->data_.begin(), mat2_->dw_->data_.end(), 0);
+  }
+
+  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  {
   }
 
   std::shared_ptr<MatWdw> mat1_, mat2_;

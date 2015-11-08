@@ -127,7 +127,8 @@ class DQNAgent : public Agent
     else
     {
       // Greedy wrt Q function.
-      net_->Forward(state);
+      *net_->input_ = *state;
+      net_->Forward();
       a = MaxIdx(net_->output_->w_->data_);
     }
 
@@ -145,13 +146,15 @@ class DQNAgent : public Agent
     // Want: Q(s,a) = r + gamma * max_a' Q(s',a').
 
     // Compute the target Q value.
-    net_->Forward(observation->s1_);
+    *net_->input_ = *observation->s1_;
+    net_->Forward();
     std::shared_ptr<MatWdw> &out = net_->output_;
     float qmax =
         observation->r0_ + gamma_ * out->w_->data_[MaxIdx(out->w_->data_)];
 
     // Predict.
-    net_->Forward(observation->s0_);
+    *net_->input_ = *observation->s0_;
+    net_->Forward();
 
     std::shared_ptr<MatWdw> &pred = net_->output_;
     float tderror = pred->w_->data_[observation->a0_] - qmax;
@@ -170,7 +173,7 @@ class DQNAgent : public Agent
 
     net_->Backward();
 
-    LearnSGD(net_);
+    LearnSGD(net_, 0.01);
 
     return tderror;
   }

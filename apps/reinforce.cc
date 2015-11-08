@@ -1,6 +1,6 @@
 #include "utils.h"
 #include "agent.h"
-#include "circle_world.h"
+#include "puck_world.h"
 
 using std::string;
 using std::vector;
@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
   math = shared_ptr<Math>(new MathCpu);
   math->Init();
 
-  shared_ptr<CircleWorld> env(new CircleWorld);
+  shared_ptr<PuckWorld> env(new PuckWorld);
   shared_ptr<DQNAgent> agent(
       new DQNAgent(env->GetNumStates(), env->GetMaxNumActions()));
 

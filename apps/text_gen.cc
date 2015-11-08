@@ -58,7 +58,8 @@ int main(int argc, char *argv[])
 
     model->graph_->Backward();
 
-    LearnRmsprop(model);
+    // learning rate, 0.01 for lstm, 0.001 for rnn
+    LearnRmsprop(model, 0.001);
 
     if (step % data->sentences_.size() == 0 && step != 0)
     {

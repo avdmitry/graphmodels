@@ -91,6 +91,8 @@ void MathCudnn::Init()
 
 void MathCudnn::Deinit()
 {
+  CheckCublas(cublasDestroy(cublasHandle));
+
   CheckCudnn(cudnnDestroyPoolingDescriptor(poolingDesc));
   CheckCudnn(cudnnDestroyConvolutionDescriptor(convDesc));
   CheckCudnn(cudnnDestroyFilterDescriptor(filterDesc));
@@ -98,8 +100,6 @@ void MathCudnn::Deinit()
   CheckCudnn(cudnnDestroyTensorDescriptor(dstTensorDesc));
   CheckCudnn(cudnnDestroyTensorDescriptor(biasTensorDesc));
   CheckCudnn(cudnnDestroy(cudnn_handle));
-
-  CheckCublas(cublasDestroy(cublasHandle));
 }
 
 int MathCudnn::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
@@ -496,22 +496,9 @@ shared_ptr<Mat> MathCudnn::Softmax(shared_ptr<Mat> &mat)
   return math_cpu->Softmax(mat);
 }
 
-void addBias(const cudnnTensorDescriptor_t& dstTensorDesc, float *bias_data, int c, float *data)
-{
-    cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, 1, c, 1, 1);
-
-    float alpha = 1;
-    float beta  = 1;
-    CheckCudnn( cudnnAddTensor(cudnn_handle, CUDNN_ADD_SAME_C,
-                                  &alpha, biasTensorDesc,
-                                  bias_data,
-                                  &beta,
-                                  dstTensorDesc,
-                                  data) );
-}
-
 int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
-                    shared_ptr<Mat> &out_w, ConvParams &conv_params)
+                    shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
+                    ConvParams &conv_params)
 {
   int padding_x = conv_params.padding_x;
   int padding_y = conv_params.padding_y;
@@ -529,18 +516,18 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
 
   CopyToDevice(in_w);
   CopyToDevice(filters_w);
+  CopyToDevice(biases_w);
   CopyToDevice(out_w);
 
   int n = 1;
   int c = num_input;
   int h = in_height;
   int w = in_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("conv %u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType, n, c, h, w);
 
   static const int kDims = 4;
-  const int filterDimA[kDims] = {num_filters, c, filter_height,
-                                      filter_width};
+  const int filterDimA[kDims] = {num_filters, c, filter_height, filter_width};
   CheckCudnn(
       cudnnSetFilterNdDescriptor(filterDesc, dataType, kDims, filterDimA));
 
@@ -548,9 +535,8 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   int padding[kConvDims] = {padding_x, padding_y};
   int stride[kConvDims] = {stride_x, stride_y};
   int upscale[kConvDims] = {1, 1};  // _v3 TODO
-  CheckCudnn(cudnnSetConvolutionNdDescriptor(convDesc, kConvDims, padding,
-                                             stride, upscale,
-                                             CUDNN_CROSS_CORRELATION));
+  CheckCudnn(cudnnSetConvolutionNdDescriptor(
+      convDesc, kConvDims, padding, stride, upscale, CUDNN_CROSS_CORRELATION));
   // find dimension of convolution output
   /*int tensorOuputDimA[tensorDims];
   CheckCudnn(cudnnGetConvolutionNdForwardOutputDim(
@@ -564,8 +550,10 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   c = num_filters;
   h = out_height;
   w = out_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("%u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
+  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, 1, c, 1,
+                             1);
 
   /*
     // Choose the best algo according to the preference
@@ -608,19 +596,26 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
 
   float alpha = 1;
   float beta = 0;  // 1
-    CheckCudnn(cudnnConvolutionForward(
-        cudnn_handle, &alpha, srcTensorDesc, in_w->data_device_,
-        filterDesc, filters_w->data_device_, convDesc, algo,
-        workSpace, sizeInBytes, &beta, dstTensorDesc, out_w->data_device_));
+  CheckCudnn(cudnnConvolutionForward(
+      cudnn_handle, &alpha, srcTensorDesc, in_w->data_device_, filterDesc,
+      filters_w->data_device_, convDesc, algo, workSpace, sizeInBytes, &beta,
+      dstTensorDesc, out_w->data_device_));
   if (sizeInBytes != 0)
   {
     CheckCuda(cudaFree(workSpace));
   }
 
+  /*float bias_alpha = 1;
+  float bias_beta = 1;
+  CheckCudnn(cudnnAddTensor(cudnn_handle, CUDNN_ADD_SAME_C, &bias_alpha,
+                            biasTensorDesc, biases_w->data_device_, &bias_beta,
+                            dstTensorDesc, out_w->data_device_));*/
+
   CopyToHost(out_w);
 
   cudaFree(in_w->data_device_);
   cudaFree(filters_w->data_device_);
+  cudaFree(biases_w->data_device_);
   cudaFree(out_w->data_device_);
 
   return 0;
@@ -628,7 +623,8 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
 
 int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                          shared_ptr<Mat> &filters_w,
-                         shared_ptr<Mat> &filters_dw, shared_ptr<Mat> &out_w,
+                         shared_ptr<Mat> &filters_dw,
+                         shared_ptr<Mat> &biases_dw, shared_ptr<Mat> &out_w,
                          shared_ptr<Mat> &out_dw, ConvParams &conv_params)
 {
   int padding_x = conv_params.padding_x;
@@ -649,18 +645,21 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   CopyToDevice(in_dw);
   CopyToDevice(filters_w);
   CopyToDevice(filters_dw);
+  CopyToDevice(biases_dw);
   CopyToDevice(out_dw);
 
   int n = 1;
   int c = num_filters;
   int h = out_height;
   int w = out_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("convderiv %u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType, n, c, h, w);
+  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, 1, c, 1,
+                             1);
 
   static const int kDims = 4;
   const int filterDimA[kDims] = {num_filters, num_input, filter_height,
-                                      filter_width};
+                                 filter_width};
   CheckCudnn(
       cudnnSetFilterNdDescriptor(filterDesc, dataType, kDims, filterDimA));
 
@@ -668,15 +667,14 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int padding[kConvDims] = {padding_x, padding_y};
   int stride[kConvDims] = {stride_x, stride_y};
   int upscale[kConvDims] = {1, 1};  // _v3 TODO
-  CheckCudnn(cudnnSetConvolutionNdDescriptor(convDesc, kConvDims, padding,
-                                             stride, upscale,
-                                             CUDNN_CROSS_CORRELATION));
+  CheckCudnn(cudnnSetConvolutionNdDescriptor(
+      convDesc, kConvDims, padding, stride, upscale, CUDNN_CROSS_CORRELATION));
 
   n = 1;
   c = num_input;
   h = in_height;
   w = in_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("%u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
 
   // get workspace for backwards filter algorithm
@@ -685,14 +683,20 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   CheckCudnn(cudnnGetConvolutionBackwardFilterWorkspaceSize(
       cudnn_handle, dstTensorDesc, srcTensorDesc, convDesc, filterDesc,
       CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1, &size_in_bytes_f));
-  //printf("filters size: %u\n", sizeInBytesF);
-  float alpha_f = 1;
-  float beta_f = 1;
+  // printf("filters size: %u\n", sizeInBytesF);
   if (size_in_bytes_f != 0)
   {
     CheckCuda(cudaMalloc(&work_space_f, size_in_bytes_f));
   }
 
+  /*float bias_alpha = 1;
+  float bias_beta = 1;
+  CheckCudnn(cudnnConvolutionBackwardBias(
+      cudnn_handle, &bias_alpha, srcTensorDesc, out_dw->data_device_,
+      &bias_beta, biasTensorDesc, biases_dw->data_device_));*/
+
+  float alpha_f = 1;
+  float beta_f = 1;
   CheckCudnn(cudnnConvolutionBackwardFilter_v3(
       cudnn_handle, &alpha_f, dstTensorDesc, in_w->data_device_, srcTensorDesc,
       out_dw->data_device_, convDesc, CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
@@ -710,7 +714,7 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   CheckCudnn(cudnnGetConvolutionBackwardDataWorkspaceSize(
       cudnn_handle, filterDesc, srcTensorDesc, convDesc, dstTensorDesc, algo,
       &size_in_bytes));
-  //printf("data size: %u\n", sizeInBytes);
+  // printf("data size: %u\n", sizeInBytes);
   if (size_in_bytes != 0)
   {
     CheckCuda(cudaMalloc(&work_space, size_in_bytes));
@@ -718,10 +722,10 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 
   float alpha = 1;
   float beta = 0;  // 1
-    CheckCudnn(cudnnConvolutionBackwardData_v3(
-        cudnn_handle, &alpha, filterDesc, filters_w->data_device_,
-        srcTensorDesc, out_dw->data_device_, convDesc, algo, work_space,
-        size_in_bytes, &beta, dstTensorDesc, in_dw->data_device_));
+  CheckCudnn(cudnnConvolutionBackwardData_v3(
+      cudnn_handle, &alpha, filterDesc, filters_w->data_device_, srcTensorDesc,
+      out_dw->data_device_, convDesc, algo, work_space, size_in_bytes, &beta,
+      dstTensorDesc, in_dw->data_device_));
   if (size_in_bytes != 0)
   {
     CheckCuda(cudaFree(work_space));
@@ -729,11 +733,13 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 
   CopyToHost(in_dw);
   CopyToHost(filters_dw);
+  CopyToHost(biases_dw);
 
   cudaFree(in_w->data_device_);
   cudaFree(in_dw->data_device_);
   cudaFree(filters_w->data_device_);
   cudaFree(filters_dw->data_device_);
+  cudaFree(biases_dw->data_device_);
   cudaFree(out_dw->data_device_);
 
   return 0;
@@ -760,7 +766,7 @@ int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   int c = num_filters;
   int h = in_height;
   int w = in_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("%u %u %u %u\n", n, c, h, w);
 
   static const int kDims = 2;
   int windowDimA[kDims] = {filter_width, filter_height};
@@ -784,7 +790,7 @@ int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   c = num_filters;
   h = out_height;
   w = out_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("%u %u %u %u\n", n, c, h, w);
 
   cudnnSetTensor4dDescriptor(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
   // resize(n*c*h*w, dstData);
@@ -826,7 +832,7 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int c = num_filters;
   int h = out_height;
   int w = out_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("%u %u %u %u\n", n, c, h, w);
 
   static const int kDims = 2;
   int windowDimA[kDims] = {filter_width, filter_height};
@@ -841,7 +847,7 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   c = num_filters;
   h = in_height;
   w = in_width;
-  //printf("%u %u %u %u\n", n, c, h, w);
+  // printf("%u %u %u %u\n", n, c, h, w);
 
   cudnnSetTensor4dDescriptor(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
   // resize(n*c*h*w, dstData);

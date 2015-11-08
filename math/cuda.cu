@@ -150,6 +150,7 @@ void MathCuda::Init()
   cublasStatus_t status = cublasCreate(&handle);
   if (status != CUBLAS_STATUS_SUCCESS)
   {
+    printf("cublas create failed\n");
     return;
   }
 
@@ -460,18 +461,19 @@ shared_ptr<Mat> MathCuda::Softmax(shared_ptr<Mat> &mat)
 }
 
 int MathCuda::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
-                   shared_ptr<Mat> &out_w, ConvParams &conv_params)
+                   shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
+                   ConvParams &conv_params)
 {
-  return math_cpu->Conv(in_w, filters_w, out_w, conv_params);
+  return math_cpu->Conv(in_w, filters_w, biases_w, out_w, conv_params);
 }
 
 int MathCuda::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                         shared_ptr<Mat> &filters_w, shared_ptr<Mat> &filters_dw,
-                        shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
-                        ConvParams &conv_params)
+                        shared_ptr<Mat> &biases_dw, shared_ptr<Mat> &out_w,
+                        shared_ptr<Mat> &out_dw, ConvParams &conv_params)
 {
-  return math_cpu->ConvDeriv(in_w, in_dw, filters_w, filters_dw, out_w, out_dw,
-                             conv_params);
+  return math_cpu->ConvDeriv(in_w, in_dw, filters_w, filters_dw, biases_dw,
+                             out_w, out_dw, conv_params);
 }
 
 int MathCuda::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,

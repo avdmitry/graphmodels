@@ -40,6 +40,10 @@ class ExtractRowOp : public Object
     std::fill(mat_->dw_->data_.begin(), mat_->dw_->data_.end(), 0);
   }
 
+  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  {
+  }
+
   int idx_;
   std::shared_ptr<MatWdw> mat_;
   std::shared_ptr<MatWdw> out_;

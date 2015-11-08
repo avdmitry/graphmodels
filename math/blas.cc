@@ -14,8 +14,8 @@ using std::shared_ptr;
 static shared_ptr<MathCpu> math_cpu(new MathCpu);
 
 void SgemmBlas(bool rowMajor, bool TransA, bool TransB, int M, int N, int K,
-               float alpha, float* A, int lda, float* B, int ldb, float beta,
-               float* C, int ldc)
+               float alpha, float *A, int lda, float *B, int ldb, float beta,
+               float *C, int ldc)
 {
   CBLAS_TRANSPOSE ta;
   if (TransA)
@@ -159,31 +159,31 @@ shared_ptr<Mat> MathBlas::Softmax(shared_ptr<Mat> &mat)
   return math_cpu->Softmax(mat);
 }
 
-int MathBlas::Conv(shared_ptr<Mat>& in_w, shared_ptr<Mat>& filters_w,
-                    shared_ptr<Mat>& out_w, ConvParams& conv_params)
+int MathBlas::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
+                   shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
+                   ConvParams &conv_params)
 {
-  return math_cpu->Conv(in_w, filters_w, out_w, conv_params);
+  return math_cpu->Conv(in_w, filters_w, biases_w, out_w, conv_params);
 }
 
-int MathBlas::ConvDeriv(shared_ptr<Mat>& in_w, shared_ptr<Mat>& in_dw,
-                         shared_ptr<Mat>& filters_w,
-                         shared_ptr<Mat>& filters_dw, shared_ptr<Mat> &out_w, shared_ptr<Mat>& out_dw,
-                         ConvParams& conv_params)
+int MathBlas::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                        shared_ptr<Mat> &filters_w, shared_ptr<Mat> &filters_dw,
+                        shared_ptr<Mat> &biases_dw, shared_ptr<Mat> &out_w,
+                        shared_ptr<Mat> &out_dw, ConvParams &conv_params)
 {
-  return math_cpu->ConvDeriv(in_w, in_dw, filters_w, filters_dw, out_w, out_dw,
-                             conv_params);
+  return math_cpu->ConvDeriv(in_w, in_dw, filters_w, filters_dw, biases_dw,
+                             out_w, out_dw, conv_params);
 }
 
-int MathBlas::MaxPool(shared_ptr<Mat>& in_w, shared_ptr<Mat>& out_w,
-                      ConvParams& conv_params)
+int MathBlas::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                      ConvParams &conv_params)
 {
   return math_cpu->MaxPool(in_w, out_w, conv_params);
 }
 
-int MathBlas::MaxPoolDeriv(shared_ptr<Mat>& in_w,
-                           shared_ptr<Mat>& in_dw, shared_ptr<Mat> &out_w,
-                           shared_ptr<Mat>& out_dw,
-                           ConvParams& conv_params)
+int MathBlas::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                           shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
+                           ConvParams &conv_params)
 {
   return math_cpu->MaxPoolDeriv(in_w, in_dw, out_w, out_dw, conv_params);
 }

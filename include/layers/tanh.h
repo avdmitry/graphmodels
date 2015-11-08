@@ -31,6 +31,10 @@ class TanhOp : public Object
     std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);
   }
 
+  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  {
+  }
+
   std::shared_ptr<MatWdw> in_;
   std::shared_ptr<MatWdw> out_;
 };

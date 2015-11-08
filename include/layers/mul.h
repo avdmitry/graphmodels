@@ -36,6 +36,10 @@ class MulOp : public Object
     std::fill(mat2_->dw_->data_.begin(), mat2_->dw_->data_.end(), 0);
   }
 
+  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  {
+  }
+
   std::shared_ptr<MatWdw> mat1_, mat2_;
   std::shared_ptr<MatWdw> out_;
 };

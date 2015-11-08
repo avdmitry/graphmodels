@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
     model->graph_->Backward();
 
-    LearnRmsprop(model);
+    LearnRmsprop(model, 0.001);
 
     if (step % data->sentences_.size() == 0 && step != 0)
     {

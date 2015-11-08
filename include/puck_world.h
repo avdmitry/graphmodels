@@ -1,12 +1,12 @@
-#ifndef CIRCLE_WORLD_H
-#define CIRCLE_WORLD_H
+#ifndef PUCK_WORLD_H
+#define PUCK_WORLD_H
 
 #include "utils.h"
 
-class CircleWorld
+class PuckWorld
 {
  public:
-  CircleWorld();
+  PuckWorld();
 
   int GetNumStates()
   {

@@ -3,8 +3,8 @@
 
 #include "utils.h"
 
-void LearnSGD(std::shared_ptr<Model> &model);
+void LearnSGD(std::shared_ptr<Model> &model, float learning_rate);
 
-void LearnRmsprop(std::shared_ptr<Model> &model);
+void LearnRmsprop(std::shared_ptr<Model> &model, float learning_rate);
 
 #endif

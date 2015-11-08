@@ -1,20 +1,21 @@
-#ifndef MAX_POOL_H
-#define MAX_POOL_H
+#ifndef MAX_POOL_LAYER_H
+#define MAX_POOL_LAYER_H
 
 #include "utils.h"
 
-class MaxPoolOp : public Object
+class MaxPoolLayer : public Object
 {
  public:
-  MaxPoolOp(std::shared_ptr<MatWdw> &in, std::shared_ptr<MatWdw> *out,
-            int filter_width, int filter_height)
+  MaxPoolLayer(std::shared_ptr<MatWdw> &in, std::shared_ptr<MatWdw> *out,
+               int filter_width, int filter_height, int padding_x, int padding_y,
+               int stride_x, int stride_y)
   {
     in_ = in;
 
-    params.padding_x = 1;
-    params.padding_y = 1;
-    params.stride_x = 2;
-    params.stride_y = 2;
+    params.padding_x = padding_x;
+    params.padding_y = padding_y;
+    params.stride_x = stride_x;
+    params.stride_y = stride_y;
     params.filter_width = filter_width;
     params.filter_height = filter_height;
     params.num_output_channels = in_->size_[2];
@@ -25,7 +26,8 @@ class MaxPoolOp : public Object
     int out_height = (in_->size_[1] + params.padding_y * 2 - filter_height) /
                          params.stride_y +
                      1;
-printf("%u %u %u %u\n", out_width, out_height, in_->size_[2], in_->size_[3]);
+    printf("maxpool out: %u %u %u %u\n", out_width, out_height, in_->size_[2],
+           in_->size_[3]);
     out_ = std::shared_ptr<MatWdw>(
         new MatWdw(out_width, out_height, in_->size_[2], in_->size_[3]));
     *out = out_;
@@ -46,6 +48,10 @@ printf("%u %u %u %u\n", out_width, out_height, in_->size_[2], in_->size_[3]);
   void ClearDw()
   {
     std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);
+  }
+
+  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  {
   }
 
   ConvParams params;

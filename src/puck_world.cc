@@ -1,10 +1,10 @@
-#include "circle_world.h"
+#include "puck_world.h"
 
 using std::string;
 using std::vector;
 using std::shared_ptr;
 
-CircleWorld::CircleWorld()
+PuckWorld::PuckWorld()
 {
   ppx_ = Random01();  // x,y
   ppy_ = Random01();
@@ -20,7 +20,7 @@ CircleWorld::CircleWorld()
   step_ = 0;
 }
 
-shared_ptr<MatWdw> CircleWorld::GetState()
+shared_ptr<MatWdw> PuckWorld::GetState()
 {
   shared_ptr<MatWdw> state(new MatWdw(GetNumStates(), 1));
   state->w_->data_[0] = ppx_ - 0.5;
@@ -34,7 +34,7 @@ shared_ptr<MatWdw> CircleWorld::GetState()
   return state;
 }
 
-int CircleWorld::SampleNextState(int a)
+int PuckWorld::SampleNextState(int a)
 {
   // World dynamics.
   ppx_ += pvx_;  // newton
