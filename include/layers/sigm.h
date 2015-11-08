@@ -23,7 +23,7 @@ class SigmOp : public Object
 
   void Backward()
   {
-    math->SigmDeriv(in_->dw_, out_->w_, out_->dw_);
+    math->SigmDeriv(in_->w_, in_->dw_, out_->w_, out_->dw_);
   }
 
   void ClearDw()

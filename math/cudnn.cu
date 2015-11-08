@@ -47,15 +47,18 @@ inline void CheckCublas(int status)
   }
 }
 
-static int CopyToDevice(shared_ptr<Mat> &mat)
+inline static int CopyToDevice(shared_ptr<Mat> &mat)
 {
   size_t len = mat->size_[0] * mat->size_[1] * mat->size_[2] * mat->size_[3];
 
-  cudaError_t error =
-      cudaMalloc((void **)&mat->data_device_, len * sizeof(float));
-  if (error != cudaSuccess)
+  if (mat->data_device_ == nullptr)
   {
-    return -1;
+    cudaError_t error =
+        cudaMalloc((void **)&mat->data_device_, len * sizeof(float));
+    if (error != cudaSuccess)
+    {
+      return -1;
+    }
   }
 
   CheckCublas(cublasSetVector(len, sizeof(float), &mat->data_[0], 1,
@@ -64,7 +67,7 @@ static int CopyToDevice(shared_ptr<Mat> &mat)
   return 0;
 }
 
-static int CopyToHost(shared_ptr<Mat> &mat)
+inline static int CopyToHost(shared_ptr<Mat> &mat)
 {
   size_t len = mat->size_[0] * mat->size_[1] * mat->size_[2] * mat->size_[3];
 
@@ -100,6 +103,12 @@ void MathCudnn::Deinit()
   CheckCudnn(cudnnDestroyTensorDescriptor(dstTensorDesc));
   CheckCudnn(cudnnDestroyTensorDescriptor(biasTensorDesc));
   CheckCudnn(cudnnDestroy(cudnn_handle));
+}
+
+int MathCudnn::FreeMatMemory(float *ptr)
+{
+  cudaFree(ptr);
+  return 0;
 }
 
 int MathCudnn::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
@@ -141,10 +150,6 @@ int MathCudnn::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     }
 
     CopyToHost(out);
-
-    cudaFree(out->data_device_);
-    cudaFree(mat2->data_device_);
-    cudaFree(mat1->data_device_);
   }
 
   return 0;
@@ -182,10 +187,6 @@ int MathCudnn::Add(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     }
 
     CopyToHost(out);
-
-    cudaFree(out->data_device_);
-    cudaFree(mat2->data_device_);
-    cudaFree(mat1->data_device_);
   }
 
   return 0;
@@ -212,10 +213,6 @@ int MathCudnn::ElmtMul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
 
   CopyToHost(out);
 
-  cudaFree(out->data_device_);
-  cudaFree(mat2->data_device_);
-  cudaFree(mat1->data_device_);
-
   return 0;
 }
 
@@ -241,7 +238,7 @@ int MathCudnn::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
 
 int MathCudnn::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  unsigned int len = in_w->size_[0] * in_w->size_[1];
+  int num_input = in_w->size_[2];
 
   CopyToDevice(in_w);
   CopyToDevice(out_w);
@@ -252,7 +249,7 @@ int MathCudnn::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   }
 
   int n = 1;
-  int c = 1;
+  int c = num_input;
   int h = in_w->size_[0];
   int w = in_w->size_[1];
 
@@ -269,15 +266,12 @@ int MathCudnn::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
   CopyToHost(out_w);
 
-  cudaFree(out_w->data_device_);
-  cudaFree(in_w->data_device_);
-
   return 0;
 }
 
 int MathCudnn::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  unsigned int len = in_w->size_[0] * in_w->size_[1];
+  int num_input = in_w->size_[2];
 
   CopyToDevice(in_w);
   CopyToDevice(out_w);
@@ -288,7 +282,7 @@ int MathCudnn::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   }
 
   int n = 1;
-  int c = 1;
+  int c = num_input;
   int h = in_w->size_[0];
   int w = in_w->size_[1];
 
@@ -305,15 +299,12 @@ int MathCudnn::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
   CopyToHost(out_w);
 
-  cudaFree(out_w->data_device_);
-  cudaFree(in_w->data_device_);
-
   return 0;
 }
 
 int MathCudnn::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  unsigned int len = in_w->size_[0] * in_w->size_[1];
+  int num_input = in_w->size_[2];
 
   CopyToDevice(in_w);
   CopyToDevice(out_w);
@@ -324,7 +315,7 @@ int MathCudnn::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   }
 
   int n = 1;
-  int c = 1;
+  int c = num_input;
   int h = in_w->size_[0];
   int w = in_w->size_[1];
 
@@ -341,20 +332,18 @@ int MathCudnn::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
   CopyToHost(out_w);
 
-  cudaFree(out_w->data_device_);
-  cudaFree(in_w->data_device_);
-
   return 0;
 }
 
-int MathCudnn::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                         shared_ptr<Mat> &out_dw)
+int MathCudnn::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                         shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int len = out_dw->size_[0] * out_dw->size_[1];
+  int num_input = in_w->size_[2];
 
-  CopyToDevice(out_dw);
-  CopyToDevice(out_w);
+  CopyToDevice(in_w);
   CopyToDevice(in_dw);
+  CopyToDevice(out_w);
+  CopyToDevice(out_dw);
 
   if (out_dw->size_[0] != out_w->size_[0] ||
       out_dw->size_[1] != out_w->size_[1] ||
@@ -364,13 +353,8 @@ int MathCudnn::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
     return -1;
   }
 
-  shared_ptr<Mat> aux(new Mat);
-  *aux = *out_dw;
-  fill(aux->data_.begin(), aux->data_.end(), 0);
-  CopyToDevice(aux);
-
   int n = 1;
-  int c = 1;
+  int c = num_input;
   int h = out_dw->size_[0];
   int w = out_dw->size_[1];
 
@@ -383,26 +367,23 @@ int MathCudnn::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
   float beta = 0;
   CheckCudnn(cudnnActivationBackward(
       cudnn_handle, CUDNN_ACTIVATION_RELU, &alpha, srcTensorDesc,
-      aux->data_device_, srcTensorDesc, out_dw->data_device_, dstTensorDesc,
-      out_w->data_device_, &beta, dstTensorDesc, in_dw->data_device_));
+      out_w->data_device_, srcTensorDesc, out_dw->data_device_, dstTensorDesc,
+      in_w->data_device_, &beta, dstTensorDesc, in_dw->data_device_));
 
   CopyToHost(in_dw);
-
-  cudaFree(in_dw->data_device_);
-  cudaFree(out_w->data_device_);
-  cudaFree(out_dw->data_device_);
 
   return 0;
 }
 
-int MathCudnn::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                         shared_ptr<Mat> &out_dw)
+int MathCudnn::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                         shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int len = out_dw->size_[0] * out_dw->size_[1];
+  int num_input = in_w->size_[2];
 
-  CopyToDevice(out_dw);
-  CopyToDevice(out_w);
+  CopyToDevice(in_w);
   CopyToDevice(in_dw);
+  CopyToDevice(out_w);
+  CopyToDevice(out_dw);
 
   if (out_dw->size_[0] != out_w->size_[0] ||
       out_dw->size_[1] != out_w->size_[1] ||
@@ -412,13 +393,8 @@ int MathCudnn::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
     return -1;
   }
 
-  shared_ptr<Mat> aux(new Mat);
-  *aux = *out_dw;
-  fill(aux->data_.begin(), aux->data_.end(), 0);
-  CopyToDevice(aux);
-
   int n = 1;
-  int c = 1;
+  int c = num_input;
   int h = out_dw->size_[0];
   int w = out_dw->size_[1];
 
@@ -432,25 +408,22 @@ int MathCudnn::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
   CheckCudnn(cudnnActivationBackward(
       cudnn_handle, CUDNN_ACTIVATION_SIGMOID, &alpha, srcTensorDesc,
       out_w->data_device_, srcTensorDesc, out_dw->data_device_, dstTensorDesc,
-      aux->data_device_, &beta, dstTensorDesc, in_dw->data_device_));
+      in_w->data_device_, &beta, dstTensorDesc, in_dw->data_device_));
 
   CopyToHost(in_dw);
-
-  cudaFree(in_dw->data_device_);
-  cudaFree(out_w->data_device_);
-  cudaFree(out_dw->data_device_);
 
   return 0;
 }
 
-int MathCudnn::TanhDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                         shared_ptr<Mat> &out_dw)
+int MathCudnn::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                         shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int len = out_dw->size_[0] * out_dw->size_[1];
+  int num_input = in_w->size_[2];
 
-  CopyToDevice(out_dw);
-  CopyToDevice(out_w);
+  CopyToDevice(in_w);
   CopyToDevice(in_dw);
+  CopyToDevice(out_w);
+  CopyToDevice(out_dw);
 
   if (out_dw->size_[0] != out_w->size_[0] ||
       out_dw->size_[1] != out_w->size_[1] ||
@@ -460,13 +433,8 @@ int MathCudnn::TanhDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
     return -1;
   }
 
-  shared_ptr<Mat> aux(new Mat);
-  *aux = *out_dw;
-  fill(aux->data_.begin(), aux->data_.end(), 0);
-  CopyToDevice(aux);
-
   int n = 1;
-  int c = 1;
+  int c = num_input;
   int h = out_dw->size_[0];
   int w = out_dw->size_[1];
 
@@ -480,13 +448,9 @@ int MathCudnn::TanhDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
   CheckCudnn(cudnnActivationBackward(
       cudnn_handle, CUDNN_ACTIVATION_TANH, &alpha, srcTensorDesc,
       out_w->data_device_, srcTensorDesc, out_dw->data_device_, dstTensorDesc,
-      aux->data_device_, &beta, dstTensorDesc, in_dw->data_device_));
+      in_w->data_device_, &beta, dstTensorDesc, in_dw->data_device_));
 
   CopyToHost(in_dw);
-
-  cudaFree(in_dw->data_device_);
-  cudaFree(out_w->data_device_);
-  cudaFree(out_dw->data_device_);
 
   return 0;
 }
@@ -552,7 +516,7 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   w = out_width;
   // printf("%u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
-  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, 1, c, 1,
+  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, n, c, 1,
                              1);
 
   /*
@@ -605,18 +569,13 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
     CheckCuda(cudaFree(workSpace));
   }
 
-  /*float bias_alpha = 1;
+  float bias_alpha = 1;
   float bias_beta = 1;
   CheckCudnn(cudnnAddTensor(cudnn_handle, CUDNN_ADD_SAME_C, &bias_alpha,
                             biasTensorDesc, biases_w->data_device_, &bias_beta,
-                            dstTensorDesc, out_w->data_device_));*/
+                            dstTensorDesc, out_w->data_device_));
 
   CopyToHost(out_w);
-
-  cudaFree(in_w->data_device_);
-  cudaFree(filters_w->data_device_);
-  cudaFree(biases_w->data_device_);
-  cudaFree(out_w->data_device_);
 
   return 0;
 }
@@ -654,7 +613,7 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int w = out_width;
   // printf("convderiv %u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType, n, c, h, w);
-  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, 1, c, 1,
+  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, n, c, 1,
                              1);
 
   static const int kDims = 4;
@@ -678,30 +637,31 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   cudnnSetTensor4dDescriptor(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
 
   // get workspace for backwards filter algorithm
+  cudnnConvolutionBwdFilterAlgo_t algo_filter =
+      CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   size_t size_in_bytes_f = 0;
   void *work_space_f = NULL;
   CheckCudnn(cudnnGetConvolutionBackwardFilterWorkspaceSize(
       cudnn_handle, dstTensorDesc, srcTensorDesc, convDesc, filterDesc,
-      CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1, &size_in_bytes_f));
+      algo_filter, &size_in_bytes_f));
   // printf("filters size: %u\n", sizeInBytesF);
   if (size_in_bytes_f != 0)
   {
     CheckCuda(cudaMalloc(&work_space_f, size_in_bytes_f));
   }
 
-  /*float bias_alpha = 1;
+  float bias_alpha = 1;
   float bias_beta = 1;
   CheckCudnn(cudnnConvolutionBackwardBias(
       cudnn_handle, &bias_alpha, srcTensorDesc, out_dw->data_device_,
-      &bias_beta, biasTensorDesc, biases_dw->data_device_));*/
+      &bias_beta, biasTensorDesc, biases_dw->data_device_));
 
   float alpha_f = 1;
   float beta_f = 1;
   CheckCudnn(cudnnConvolutionBackwardFilter_v3(
       cudnn_handle, &alpha_f, dstTensorDesc, in_w->data_device_, srcTensorDesc,
-      out_dw->data_device_, convDesc, CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
-      work_space_f, size_in_bytes_f, &beta_f, filterDesc,
-      filters_dw->data_device_));
+      out_dw->data_device_, convDesc, algo_filter, work_space_f,
+      size_in_bytes_f, &beta_f, filterDesc, filters_dw->data_device_));
 
   if (size_in_bytes_f != 0)
   {
@@ -735,29 +695,24 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   CopyToHost(filters_dw);
   CopyToHost(biases_dw);
 
-  cudaFree(in_w->data_device_);
-  cudaFree(in_dw->data_device_);
-  cudaFree(filters_w->data_device_);
-  cudaFree(filters_dw->data_device_);
-  cudaFree(biases_dw->data_device_);
-  cudaFree(out_dw->data_device_);
-
   return 0;
 }
 
 int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
                        ConvParams &conv_params)
 {
-  int pad = conv_params.padding_x;
-  int stride = conv_params.stride_x;
+  int padding_x = conv_params.padding_x;
+  int padding_y = conv_params.padding_y;
+  int stride_x = conv_params.stride_x;
+  int stride_y = conv_params.stride_y;
+  int filter_width = conv_params.filter_width;
+  int filter_height = conv_params.filter_height;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int num_filters = in_w->size_[2];
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
 
-  int out_width = (in_width + pad * 2 - filter_width) / stride + 1;
-  int out_height = (in_height + pad * 2 - filter_height) / stride + 1;
+  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
+  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
 
   CopyToDevice(in_w);
   CopyToDevice(out_w);
@@ -770,8 +725,8 @@ int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
 
   static const int kDims = 2;
   int windowDimA[kDims] = {filter_width, filter_height};
-  int paddingA[kDims] = {pad, pad};
-  int strideA[kDims] = {stride, stride};
+  int paddingA[kDims] = {padding_x, padding_y};
+  int strideA[kDims] = {stride_x, stride_y};
   CheckCudnn(cudnnSetPoolingNdDescriptor(poolingDesc, CUDNN_POOLING_MAX, kDims,
                                          windowDimA, paddingA, strideA));
 
@@ -802,9 +757,6 @@ int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
 
   CopyToHost(out_w);
 
-  cudaFree(in_w->data_device_);
-  cudaFree(out_w->data_device_);
-
   return 0;
 }
 
@@ -812,16 +764,18 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                             shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
                             ConvParams &conv_params)
 {
-  int pad = conv_params.padding_x;
-  int stride = conv_params.stride_x;
+  int padding_x = conv_params.padding_x;
+  int padding_y = conv_params.padding_y;
+  int stride_x = conv_params.stride_x;
+  int stride_y = conv_params.stride_y;
+  int filter_width = conv_params.filter_width;
+  int filter_height = conv_params.filter_height;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int num_filters = in_w->size_[2];
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
 
-  int out_width = (in_width + pad * 2 - filter_width) / stride + 1;
-  int out_height = (in_height + pad * 2 - filter_height) / stride + 1;
+  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
+  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
 
   CopyToDevice(in_w);
   CopyToDevice(in_dw);
@@ -836,8 +790,8 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 
   static const int kDims = 2;
   int windowDimA[kDims] = {filter_width, filter_height};
-  int paddingA[kDims] = {pad, pad};
-  int strideA[kDims] = {stride, stride};
+  int paddingA[kDims] = {padding_x, padding_y};
+  int strideA[kDims] = {stride_x, stride_y};
   CheckCudnn(cudnnSetPoolingNdDescriptor(poolingDesc, CUDNN_POOLING_MAX, kDims,
                                          windowDimA, paddingA, strideA));
 
@@ -859,11 +813,6 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
       &beta, dstTensorDesc, in_dw->data_device_));
 
   CopyToHost(in_dw);
-
-  cudaFree(in_w->data_device_);
-  cudaFree(in_dw->data_device_);
-  cudaFree(out_w->data_device_);
-  cudaFree(out_dw->data_device_);
 
   return 0;
 }

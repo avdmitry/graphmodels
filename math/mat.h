@@ -7,14 +7,12 @@
 class Mat
 {
  public:
-  Mat()
+  Mat() : data_device_(nullptr)
   {
   }
-  ~Mat()
-  {
-  }
+  ~Mat();
 
-  Mat(std::vector<int> sizes)
+  Mat(std::vector<int> sizes) : data_device_(nullptr)
   {
     int total = 1;
     for (int i = 0; i < sizes.size(); ++i)
@@ -26,7 +24,7 @@ class Mat
     data_.resize(total, 0);
   }
 
-  Mat(int n, int d = 1, int m = 1, int f = 1)
+  Mat(int n, int d = 1, int m = 1, int f = 1) : data_device_(nullptr)
   {
     data_.resize(n * d * m * f, 0);
 

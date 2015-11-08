@@ -32,6 +32,8 @@ class Math
   virtual void Init() = 0;
   virtual void Deinit() = 0;
 
+  virtual int FreeMatMemory(float *ptr) = 0;
+
   virtual int Add(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
                   std::shared_ptr<Mat> &out) = 0;
   virtual int ElmtMul(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
@@ -54,13 +56,13 @@ class Math
   virtual int Sigm(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w) = 0;
   virtual int Tanh(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w) = 0;
 
-  virtual int ReluDeriv(std::shared_ptr<Mat> &in_dw,
+  virtual int ReluDeriv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &in_dw,
                         std::shared_ptr<Mat> &out_w,
                         std::shared_ptr<Mat> &out_dw) = 0;
-  virtual int SigmDeriv(std::shared_ptr<Mat> &in_dw,
+  virtual int SigmDeriv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &in_dw,
                         std::shared_ptr<Mat> &out_w,
                         std::shared_ptr<Mat> &out_dw) = 0;
-  virtual int TanhDeriv(std::shared_ptr<Mat> &in_dw,
+  virtual int TanhDeriv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &in_dw,
                         std::shared_ptr<Mat> &out_w,
                         std::shared_ptr<Mat> &out_dw) = 0;
 

@@ -136,22 +136,22 @@ int MathBlas::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   return math_cpu->Tanh(in_w, out_w);
 }
 
-int MathBlas::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                        shared_ptr<Mat> &out_dw)
+int MathBlas::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                        shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  return math_cpu->ReluDeriv(in_dw, out_w, out_dw);
+  return math_cpu->ReluDeriv(in_w, in_dw, out_w, out_dw);
 }
 
-int MathBlas::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                        shared_ptr<Mat> &out_dw)
+int MathBlas::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                        shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  return math_cpu->SigmDeriv(in_dw, out_w, out_dw);
+  return math_cpu->SigmDeriv(in_w, in_dw, out_w, out_dw);
 }
 
-int MathBlas::TanhDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                        shared_ptr<Mat> &out_dw)
+int MathBlas::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                        shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  return math_cpu->TanhDeriv(in_dw, out_w, out_dw);
+  return math_cpu->TanhDeriv(in_w, in_dw, out_w, out_dw);
 }
 
 shared_ptr<Mat> MathBlas::Softmax(shared_ptr<Mat> &mat)

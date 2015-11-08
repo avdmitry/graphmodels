@@ -163,6 +163,12 @@ void MathCuda::Deinit()
   cudaThreadExit();
 }
 
+int MathCuda::FreeMatMemory(float *ptr)
+{
+  cudaFree(ptr);
+  return 0;
+}
+
 int MathCuda::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
                   shared_ptr<Mat> &out)
 {
@@ -202,10 +208,6 @@ int MathCuda::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     }
 
     CopyToHost(out);
-
-    cudaFree(out->data_device_);
-    cudaFree(mat2->data_device_);
-    cudaFree(mat1->data_device_);
   }
 
   return 0;
@@ -242,10 +244,6 @@ int MathCuda::Add(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     }
 
     CopyToHost(out);
-
-    cudaFree(out->data_device_);
-    cudaFree(mat2->data_device_);
-    cudaFree(mat1->data_device_);
   }
 
   return 0;
@@ -271,10 +269,6 @@ int MathCuda::ElmtMul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   }
 
   CopyToHost(out);
-
-  cudaFree(out->data_device_);
-  cudaFree(mat2->data_device_);
-  cudaFree(mat1->data_device_);
 
   return 0;
 }
@@ -316,9 +310,6 @@ int MathCuda::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
   CopyToHost(out_w);
 
-  cudaFree(out_w->data_device_);
-  cudaFree(in_w->data_device_);
-
   return 0;
 }
 
@@ -338,9 +329,6 @@ int MathCuda::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
       (in_w->data_device_, out_w->data_device_, len);
 
   CopyToHost(out_w);
-
-  cudaFree(out_w->data_device_);
-  cudaFree(in_w->data_device_);
 
   return 0;
 }
@@ -362,14 +350,11 @@ int MathCuda::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
   CopyToHost(out_w);
 
-  cudaFree(out_w->data_device_);
-  cudaFree(in_w->data_device_);
-
   return 0;
 }
 
-int MathCuda::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                        shared_ptr<Mat> &out_dw)
+int MathCuda::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                        shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
   int len = out_dw->size_[0] * out_dw->size_[1];
 
@@ -390,15 +375,11 @@ int MathCuda::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
 
   CopyToHost(in_dw);
 
-  cudaFree(in_dw->data_device_);
-  cudaFree(out_w->data_device_);
-  cudaFree(out_dw->data_device_);
-
   return 0;
 }
 
-int MathCuda::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                        shared_ptr<Mat> &out_dw)
+int MathCuda::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                        shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
   int len = out_dw->size_[0] * out_dw->size_[1];
 
@@ -419,15 +400,11 @@ int MathCuda::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
 
   CopyToHost(in_dw);
 
-  cudaFree(in_dw->data_device_);
-  cudaFree(out_w->data_device_);
-  cudaFree(out_dw->data_device_);
-
   return 0;
 }
 
-int MathCuda::TanhDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                        shared_ptr<Mat> &out_dw)
+int MathCuda::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                        shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
   int len = out_dw->size_[0] * out_dw->size_[1];
 
@@ -447,10 +424,6 @@ int MathCuda::TanhDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
       (out_dw->data_device_, out_w->data_device_, in_dw->data_device_, len);
 
   CopyToHost(in_dw);
-
-  cudaFree(in_dw->data_device_);
-  cudaFree(out_w->data_device_);
-  cudaFree(out_dw->data_device_);
 
   return 0;
 }

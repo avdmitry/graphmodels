@@ -15,7 +15,7 @@ The following models are implemented:
 
   - PuckWorld example: [reinforce](apps/reinforce.cc)
 
-- Deep Feed-forward Neural Networks: fully-connected and Convolutional Neural Network *CNN*.
+- Deep Feed-forward Neural Networks: fully-connected and Convolutional Neural Network **CNN**.
 
   - Fully-connected example (~98% accuracy in about 5 min on i7 CPU): [mnist-fc](apps/mnist-fc.cc)
   - Convolutional example (~99% accuracy in about 3 min on i7 CPU): [mnist-conv](apps/mnist-conv.cc)

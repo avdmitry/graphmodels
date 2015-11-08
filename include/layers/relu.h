@@ -23,7 +23,7 @@ class ReluOp : public Object
 
   void Backward()
   {
-    math->ReluDeriv(in_->dw_, out_->w_, out_->dw_);
+    math->ReluDeriv(in_->w_, in_->dw_, out_->w_, out_->dw_);
   }
 
   void ClearDw()

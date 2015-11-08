@@ -189,8 +189,8 @@ int MathCpu::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   return 0;
 }
 
-int MathCpu::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                       shared_ptr<Mat> &out_dw)
+int MathCpu::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                       shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
   for (size_t i = 0; i < out_dw->data_.size(); i++)
   {
@@ -202,8 +202,8 @@ int MathCpu::ReluDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
   return 0;
 }
 
-int MathCpu::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                       shared_ptr<Mat> &out_dw)
+int MathCpu::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                       shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
   for (size_t i = 0; i < out_dw->data_.size(); i++)
   {
@@ -213,8 +213,8 @@ int MathCpu::SigmDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
   return 0;
 }
 
-int MathCpu::TanhDeriv(shared_ptr<Mat> &in_dw, shared_ptr<Mat> &out_w,
-                       shared_ptr<Mat> &out_dw)
+int MathCpu::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                       shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
   for (size_t i = 0; i < out_dw->data_.size(); i++)
   {

@@ -23,7 +23,7 @@ class TanhOp : public Object
 
   void Backward()
   {
-    math->TanhDeriv(in_->dw_, out_->w_, out_->dw_);
+    math->TanhDeriv(in_->w_, in_->dw_, out_->w_, out_->dw_);
   }
 
   void ClearDw()
