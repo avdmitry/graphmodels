@@ -62,15 +62,15 @@ int main(int argc, char *argv[])
   float error_sum = 0.0;
   for (size_t j = 0; j < model->params_.size(); ++j)
   {
-    shared_ptr<MatWdw> &mat = model->params_[j];
-    for (size_t i = 0; i < mat->w_->data_.size(); ++i)
+    shared_ptr<Mat> &mat = model->params_[j];
+    for (size_t i = 0; i < mat->data_.size(); ++i)
     {
-      float oldval = mat->w_->data_[i];
-      mat->w_->data_[i] = oldval + eps;
+      float oldval = mat->data_[i];
+      mat->data_[i] = oldval + eps;
       float c0 = CalcCost(model, sent, data);
-      mat->w_->data_[i] = oldval - eps;
+      mat->data_[i] = oldval - eps;
       float c1 = CalcCost(model, sent, data);
-      mat->w_->data_[i] = oldval;
+      mat->data_[i] = oldval;
 
       num_total += 1;
       float grad_numeric = (c0 - c1) / (2 * eps);

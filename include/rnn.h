@@ -11,18 +11,18 @@ class Rnn : public Model
 
   void Create(int idx);
 
-  void GetParameters(std::vector<std::shared_ptr<MatWdw>> &params_);
+  void GetParameters(std::vector<std::shared_ptr<Mat>> &params_);
 
   void ClearPrevState()
   {
     prev_hiddens_.clear();
   }
 
-  std::vector<std::shared_ptr<MatWdw>> wxh_, whh_, bhh_;
-  std::shared_ptr<MatWdw> whd_, bd_;
-  std::shared_ptr<MatWdw> wil_;
+  std::vector<std::shared_ptr<Mat>> wxh_, whh_, bhh_;
+  std::shared_ptr<Mat> whd_, bd_;
+  std::shared_ptr<Mat> wil_;
 
-  std::vector<std::shared_ptr<MatWdw>> prev_hiddens_;
+  std::vector<std::shared_ptr<Mat>> prev_hiddens_;
 
   std::vector<int> hidden_sizes_;
 };

@@ -22,16 +22,16 @@ class CnnNet : public Model
     static const int num_filters2 = 16;
 
     graph_ = shared_ptr<Graph>(new Graph);
-    input_ = shared_ptr<MatWdw>(new MatWdw(num_input_x, num_input_y));
+    input_ = shared_ptr<Mat>(new Mat(num_input_x, num_input_y));
 
-    shared_ptr<MatWdw> conv1, rel1, mp1;
+    shared_ptr<Mat> conv1, rel1, mp1;
     graph_->Process(shared_ptr<Object>(new ConvLayer(
         input_, &conv1, num_filters1, filter1_x, filter1_y, 1, 1, 1, 1)));
     graph_->Process(shared_ptr<Object>(new ReluOp(conv1, &rel1)));
     graph_->Process(
         shared_ptr<Object>(new MaxPoolLayer(rel1, &mp1, 3, 3, 1, 1, 2, 2)));
 
-    shared_ptr<MatWdw> conv2, rel2, mp2;
+    shared_ptr<Mat> conv2, rel2, mp2;
     graph_->Process(shared_ptr<Object>(new ConvLayer(
         mp1, &conv2, num_filters2, filter2_x, filter2_y, 1, 1, 1, 1)));
     graph_->Process(shared_ptr<Object>(new ReluOp(conv2, &rel2)));
@@ -43,9 +43,8 @@ class CnnNet : public Model
     graph_->GetParams(params_);
     for (size_t i = 0; i < params_.size(); ++i)
     {
-      shared_ptr<MatWdw> &mat = params_[i];
-      params_prev_.emplace_back(new MatWdw(mat->size_[0], mat->size_[1],
-                                           mat->size_[2], mat->size_[3]));
+      shared_ptr<Mat> &mat = params_[i];
+      params_prev_.emplace_back(new Mat(mat->size_));
     }
   }
 
@@ -95,7 +94,7 @@ int main(int argc, char *argv[])
       for (int y = 0; y < 28; ++y)
       {
         int idx = x + y * 28;
-        net->input_->w_->data_[idx] = train[train_idx]->image[idx];
+        net->input_->data_[idx] = train[train_idx]->image[idx];
       }
     }
     int idx_target = train[train_idx]->label;
@@ -135,13 +134,13 @@ int main(int argc, char *argv[])
       {
         for (int i = 0; i < 784; ++i)
         {
-          net->input_->w_->data_[i] = test[test_idx]->image[i];
+          net->input_->data_[i] = test[test_idx]->image[i];
         }
         int idx_gt = test[test_idx]->label;
 
         net->Forward();
 
-        int idx_pred = MaxIdx(net->output_->w_->data_);
+        int idx_pred = MaxIdx(net->output_->data_);
         if (idx_gt == idx_pred)
         {
           acc += 1;

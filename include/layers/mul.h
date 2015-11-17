@@ -7,27 +7,28 @@
 class MulOp : public Object
 {
  public:
-  MulOp(std::shared_ptr<MatWdw> &mat1, std::shared_ptr<MatWdw> &mat2,
-        std::shared_ptr<MatWdw> *out)
+  MulOp(std::shared_ptr<Mat> &mat1, std::shared_ptr<Mat> &mat2,
+        std::shared_ptr<Mat> *out)
   {
     assert(mat1->size_[1] == mat2->size_[0]);
     mat1_ = mat1;
     mat2_ = mat2;
-    out_ = std::shared_ptr<MatWdw>(new MatWdw(
-        mat1_->size_[0], mat2_->size_[1], mat1_->size_[2], mat1_->size_[3]));
+    out_ = std::shared_ptr<Mat>(
+        new Mat(mat1_->size_[0], mat2_->size_[1],
+                   mat1_->size_[2], mat1_->size_[3]));
     *out = out_;
   }
 
-  std::shared_ptr<MatWdw> Forward()
+  std::shared_ptr<Mat> Forward()
   {
-    math->Mul(mat1_->w_, mat2_->w_, out_->w_);
+    math->Mul(mat1_, mat2_, out_);
 
     return out_;
   }
 
   void Backward()
   {
-    math->MulDeriv(mat1_->w_, mat2_->w_, mat1_->dw_, mat2_->dw_, out_->dw_);
+    math->MulDeriv(mat1_, mat2_, mat1_->dw_, mat2_->dw_, out_->dw_);
   }
 
   void ClearDw()
@@ -36,12 +37,12 @@ class MulOp : public Object
     std::fill(mat2_->dw_->data_.begin(), mat2_->dw_->data_.end(), 0);
   }
 
-  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  void GetParams(std::vector<std::shared_ptr<Mat>> &params)
   {
   }
 
-  std::shared_ptr<MatWdw> mat1_, mat2_;
-  std::shared_ptr<MatWdw> out_;
+  std::shared_ptr<Mat> mat1_, mat2_;
+  std::shared_ptr<Mat> out_;
 };
 
 #endif

@@ -17,14 +17,14 @@ class FcNet : public Model
     static const int num_hidden_units = 256;
 
     graph_ = shared_ptr<Graph>(new Graph);
-    input_ = shared_ptr<MatWdw>(new MatWdw(num_input, 1));
+    input_ = shared_ptr<Mat>(new Mat(num_input, 1));
 
-    shared_ptr<MatWdw> a1mat, h1mat;
+    shared_ptr<Mat> a1mat, h1mat;
     graph_->Process(
         shared_ptr<Object>(new FCLayer(input_, &a1mat, num_hidden_units)));
     graph_->Process(shared_ptr<Object>(new ReluOp(a1mat, &h1mat)));
 
-    shared_ptr<MatWdw> a2mat, h2mat;
+    shared_ptr<Mat> a2mat, h2mat;
     graph_->Process(
         shared_ptr<Object>(new FCLayer(h1mat, &a2mat, num_hidden_units)));
     graph_->Process(shared_ptr<Object>(new ReluOp(a2mat, &h2mat)));
@@ -35,9 +35,8 @@ class FcNet : public Model
     graph_->GetParams(params_);
     for (size_t i = 0; i < params_.size(); ++i)
     {
-      shared_ptr<MatWdw> &mat = params_[i];
-      params_prev_.emplace_back(new MatWdw(mat->size_[0], mat->size_[1],
-                                           mat->size_[2], mat->size_[3]));
+      shared_ptr<Mat> &mat = params_[i];
+      params_prev_.emplace_back(new Mat(mat->size_));
     }
   }
 
@@ -84,7 +83,7 @@ int main(int argc, char *argv[])
     // int train_idx = Random01()*(train.size()-1);
     for (int idx = 0; idx < 784; ++idx)
     {
-      net->input_->w_->data_[idx] = train[train_idx]->image[idx];
+      net->input_->data_[idx] = train[train_idx]->image[idx];
     }
     int idx_target = train[train_idx]->label;
 
@@ -124,13 +123,13 @@ int main(int argc, char *argv[])
       {
         for (int idx = 0; idx < 784; ++idx)
         {
-          net->input_->w_->data_[idx] = test[test_idx]->image[idx];
+          net->input_->data_[idx] = test[test_idx]->image[idx];
         }
         int idx_gt = test[test_idx]->label;
 
         net->Forward();
 
-        int idx_pred = MaxIdx(net->output_->w_->data_);
+        int idx_pred = MaxIdx(net->output_->data_);
         if (idx_gt == idx_pred)
         {
           acc += 1;

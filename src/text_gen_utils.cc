@@ -61,9 +61,9 @@ float CalcCost(shared_ptr<Model> &model, string &sent, shared_ptr<Data> &data)
     model->Create(idx_source);
 
     model->graph_->Forward();
-    shared_ptr<MatWdw> logprobs = model->output_;
+    shared_ptr<Mat> logprobs = model->output_;
 
-    shared_ptr<Mat> probs = math->Softmax(logprobs->w_);
+    shared_ptr<Mat> probs = math->Softmax(logprobs);
     cost += -log(probs->data_[idx_target]);
 
     // Write gradients into log probabilities.
@@ -97,7 +97,7 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
     model->Create(idx);
 
     model->graph_->Forward();
-    shared_ptr<MatWdw> logprobs = model->output_;
+    shared_ptr<Mat> logprobs = model->output_;
 
     // Sample predicted letter.
     if (temperature > 0.0 && temperature < 1.0 && sample_idx)
@@ -106,13 +106,13 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
       // if temperature is high, logprobs will go towards zero
       // and the softmax outputs will be more diffuse. if temperature is
       // very low, the softmax outputs will be more peaky.
-      for (int i = 0; i < logprobs->w_->data_.size(); i++)
+      for (int i = 0; i < logprobs->data_.size(); i++)
       {
-        logprobs->w_->data_[i] /= temperature;
+        logprobs->data_[i] /= temperature;
       }
     }
 
-    shared_ptr<Mat> probs = math->Softmax(logprobs->w_);
+    shared_ptr<Mat> probs = math->Softmax(logprobs);
     if (sample_idx)
     {
       idx = SampleIdx(probs->data_);

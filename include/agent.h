@@ -12,17 +12,17 @@ class Net : public Model
   {
     int num_hidden_units = 100;
     w1_ = RandMat(num_hidden_units, ns, -0.01, 0.01);
-    b1_ = std::shared_ptr<MatWdw>(new MatWdw(num_hidden_units, 1));
+    b1_ = std::shared_ptr<Mat>(new Mat(num_hidden_units, 1));
     w2_ = RandMat(na, num_hidden_units, -0.01, 0.01);
-    b2_ = std::shared_ptr<MatWdw>(new MatWdw(na, 1));
+    b2_ = std::shared_ptr<Mat>(new Mat(na, 1));
 
-    input_ = std::shared_ptr<MatWdw>(new MatWdw(ns, 1));
+    input_ = std::shared_ptr<Mat>(new Mat(ns, 1));
 
     GetParameters(params_);
     for (size_t i = 0; i < params_.size(); ++i)
     {
-      std::shared_ptr<MatWdw> &mat = params_[i];
-      params_prev_.emplace_back(new MatWdw(mat->size_[0], mat->size_[1]));
+      std::shared_ptr<Mat> &mat = params_[i];
+      params_prev_.emplace_back(new Mat(mat->size_));
     }
   }
 
@@ -32,7 +32,7 @@ class Net : public Model
 
     graph_ = std::shared_ptr<Graph>(new Graph);
 
-    std::shared_ptr<MatWdw> mul1, a1mat, h1mat, mul2;
+    std::shared_ptr<Mat> mul1, a1mat, h1mat, mul2;
     graph_->Process(std::shared_ptr<Object>(new MulOp(w1_, input_, &mul1)));
     graph_->Process(std::shared_ptr<Object>(new AddOp(mul1, b1_, &a1mat)));
     graph_->Process(std::shared_ptr<Object>(new TanhOp(a1mat, &h1mat)));
@@ -45,7 +45,7 @@ class Net : public Model
   {
   }
 
-  void GetParameters(std::vector<std::shared_ptr<MatWdw>> &params)
+  void GetParameters(std::vector<std::shared_ptr<Mat>> &params)
   {
     params.emplace_back(w1_);
     params.emplace_back(b1_);
@@ -53,13 +53,13 @@ class Net : public Model
     params.emplace_back(b2_);
   }
 
-  std::shared_ptr<MatWdw> w1_, w2_, b1_, b2_;
+  std::shared_ptr<Mat> w1_, w2_, b1_, b2_;
 };
 
 class Observation
 {
  public:
-  Observation(std::shared_ptr<MatWdw> &s0, std::shared_ptr<MatWdw> &s1, int a0,
+  Observation(std::shared_ptr<Mat> &s0, std::shared_ptr<Mat> &s1, int a0,
               float r0)
       : s0_(s0), s1_(s1), a0_(a0), r0_(r0)
   {
@@ -68,7 +68,7 @@ class Observation
   {
   }
 
-  std::shared_ptr<MatWdw> s0_, s1_;
+  std::shared_ptr<Mat> s0_, s1_;
   int a0_;
   float r0_;
 };
@@ -116,7 +116,7 @@ class DQNAgent : public Agent
   {
   }
 
-  int Act(std::shared_ptr<MatWdw> &state)
+  int Act(std::shared_ptr<Mat> &state)
   {
     int a;
     // Epsilon greedy policy.
@@ -129,7 +129,7 @@ class DQNAgent : public Agent
       // Greedy wrt Q function.
       *net_->input_ = *state;
       net_->Forward();
-      a = MaxIdx(net_->output_->w_->data_);
+      a = MaxIdx(net_->output_->data_);
     }
 
     // Shift state memory.
@@ -148,16 +148,16 @@ class DQNAgent : public Agent
     // Compute the target Q value.
     *net_->input_ = *observation->s1_;
     net_->Forward();
-    std::shared_ptr<MatWdw> &out = net_->output_;
+    std::shared_ptr<Mat> &out = net_->output_;
     float qmax =
-        observation->r0_ + gamma_ * out->w_->data_[MaxIdx(out->w_->data_)];
+        observation->r0_ + gamma_ * out->data_[MaxIdx(out->data_)];
 
     // Predict.
     *net_->input_ = *observation->s0_;
     net_->Forward();
 
-    std::shared_ptr<MatWdw> &pred = net_->output_;
-    float tderror = pred->w_->data_[observation->a0_] - qmax;
+    std::shared_ptr<Mat> &pred = net_->output_;
+    float tderror = pred->data_[observation->a0_] - qmax;
 
     // Huber loss to robustify.
     if (tderror > tderror_clamp_)
@@ -216,7 +216,7 @@ class DQNAgent : public Agent
     r0_ = r1;
   }
 
-  std::shared_ptr<MatWdw> s0_, s1_;
+  std::shared_ptr<Mat> s0_, s1_;
   int a0_, a1_;
   float r0_;
 

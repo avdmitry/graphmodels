@@ -16,32 +16,6 @@
 
 #include "math/common.h"
 
-class MatWdw
-{
- public:
-  MatWdw()
-  {
-  }
-  ~MatWdw()
-  {
-  }
-
-  MatWdw(int n, int d = 1, int m = 1, int f = 1)
-  {
-    w_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, m, f})));
-    dw_ = std::shared_ptr<Mat>(new Mat(std::vector<int>({n, d, m, f})));
-
-    size_.emplace_back(n);
-    size_.emplace_back(d);
-    size_.emplace_back(m);
-    size_.emplace_back(f);
-  }
-
-  std::vector<int> size_;
-  std::shared_ptr<Mat> w_;
-  std::shared_ptr<Mat> dw_;
-};
-
 class Data
 {
  public:
@@ -65,10 +39,10 @@ class Object
   {
   }
 
-  virtual std::shared_ptr<MatWdw> Forward() = 0;
+  virtual std::shared_ptr<Mat> Forward() = 0;
   virtual void Backward() = 0;
   virtual void ClearDw() = 0;
-  virtual void GetParams(std::vector<std::shared_ptr<MatWdw>> &params) = 0;
+  virtual void GetParams(std::vector<std::shared_ptr<Mat>> &params) = 0;
 };
 
 class Graph
@@ -116,7 +90,7 @@ class Graph
     }
   }
 
-  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  void GetParams(std::vector<std::shared_ptr<Mat>> &params)
   {
     for (int i = backward_.size() - 1; i >= 0; --i)
     {
@@ -153,12 +127,12 @@ class Model
 
   virtual void ClearPrevState() = 0;
 
-  std::shared_ptr<MatWdw> input_, output_;
+  std::shared_ptr<Mat> input_, output_;
 
   std::shared_ptr<Graph> graph_;
 
-  std::vector<std::shared_ptr<MatWdw>> params_;
-  std::vector<std::shared_ptr<MatWdw>> params_prev_;
+  std::vector<std::shared_ptr<Mat>> params_;
+  std::vector<std::shared_ptr<Mat>> params_prev_;
 };
 
 inline float Random01()
@@ -176,9 +150,9 @@ inline int Randi(int l, int r)
   return floor(Randf(l, r));
 }
 
-std::shared_ptr<MatWdw> RandMat(int n, int d, float l, float r);
+std::shared_ptr<Mat> RandMat(int n, int d, float l, float r);
 
-std::shared_ptr<MatWdw> RandMatGauss(int n, int d, int m, int f, float mean,
+std::shared_ptr<Mat> RandMatGauss(int n, int d, int m, int f, float mean,
                                      float stddev);
 
 int MaxIdx(const std::vector<float> &w);

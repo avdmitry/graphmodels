@@ -20,17 +20,17 @@ PuckWorld::PuckWorld()
   step_ = 0;
 }
 
-shared_ptr<MatWdw> PuckWorld::GetState()
+shared_ptr<Mat> PuckWorld::GetState()
 {
-  shared_ptr<MatWdw> state(new MatWdw(GetNumStates(), 1));
-  state->w_->data_[0] = ppx_ - 0.5;
-  state->w_->data_[1] = ppy_ - 0.5;
-  state->w_->data_[2] = pvx_ * 10;
-  state->w_->data_[3] = pvy_ * 10;
-  state->w_->data_[4] = tx_ - ppx_;
-  state->w_->data_[5] = ty_ - ppy_;
-  state->w_->data_[6] = tx2_ - ppx_;
-  state->w_->data_[7] = ty2_ - ppy_;
+  shared_ptr<Mat> state(new Mat(GetNumStates(), 1));
+  state->data_[0] = ppx_ - 0.5;
+  state->data_[1] = ppy_ - 0.5;
+  state->data_[2] = pvx_ * 10;
+  state->data_[3] = pvy_ * 10;
+  state->data_[4] = tx_ - ppx_;
+  state->data_[5] = ty_ - ppy_;
+  state->data_[6] = tx2_ - ppx_;
+  state->data_[7] = ty2_ - ppy_;
   return state;
 }
 

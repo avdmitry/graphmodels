@@ -92,11 +92,11 @@ int MathCpu::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
                  shared_ptr<Mat> &out)
 {
   int m = mat1->size_[0];
-  int k2 = mat1->size_[1] * mat1->size_[2] * mat1->size_[3];
+  int k2 = mat1->size_[1];
   int k = mat2->size_[0];
-  int n = mat2->size_[1] * mat2->size_[2] * mat2->size_[3];
+  int n = mat2->size_[1];
   int m2 = out->size_[0];
-  int n2 = out->size_[1] * out->size_[2] * out->size_[3];
+  int n2 = out->size_[1];
   if (m != m2 || n != n2 || k != k2)
   {
     printf("%d %d %d %d %d %d\n", m, k2, k, n, m2, n2);

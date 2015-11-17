@@ -12,19 +12,31 @@ class Mat
   }
   ~Mat();
 
-  Mat(std::vector<int> sizes) : data_device_(nullptr)
+  Mat(const std::vector<int>& sizes, bool with_dw = true)
+      : data_device_(nullptr)
   {
-    int total = 1;
-    for (int i = 0; i < sizes.size(); ++i)
+    std::vector<int> sizes_tmp(sizes);
+    while (sizes_tmp.size() < 4)
     {
-      int curr = sizes[i];
+      sizes_tmp.emplace_back(1);
+    }
+
+    int total = 1;
+    for (int curr : sizes_tmp)
+    {
       total *= curr;
       size_.emplace_back(curr);
     }
     data_.resize(total, 0);
+
+    if (with_dw)
+    {
+      dw_ = std::shared_ptr<Mat>(new Mat(size_, false));
+    }
   }
 
-  Mat(int n, int d = 1, int m = 1, int f = 1) : data_device_(nullptr)
+  Mat(int n, int d, int m = 1, int f = 1, bool with_dw = true)
+      : data_device_(nullptr)
   {
     data_.resize(n * d * m * f, 0);
 
@@ -32,11 +44,17 @@ class Mat
     size_.emplace_back(d);
     size_.emplace_back(m);
     size_.emplace_back(f);
+
+    if (with_dw)
+    {
+      dw_ = std::shared_ptr<Mat>(new Mat(size_, false));
+    }
   }
 
   std::vector<int> size_;
   std::vector<float> data_;
 
+  std::shared_ptr<Mat> dw_;
   float* data_device_;
 };
 

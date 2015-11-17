@@ -18,7 +18,7 @@ class PuckWorld
     return 5;  // left, right, up, down, nothing
   }
 
-  std::shared_ptr<MatWdw> GetState();
+  std::shared_ptr<Mat> GetState();
 
   int SampleNextState(int a);
 

@@ -6,24 +6,23 @@
 class SigmOp : public Object
 {
  public:
-  SigmOp(std::shared_ptr<MatWdw> &in, std::shared_ptr<MatWdw> *out)
+  SigmOp(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out)
   {
     in_ = in;
-    out_ = std::shared_ptr<MatWdw>(
-        new MatWdw(in_->size_[0], in_->size_[1], in_->size_[2], in_->size_[3]));
+    out_ = std::shared_ptr<Mat>(new Mat(in_->size_));
     *out = out_;
   }
 
-  std::shared_ptr<MatWdw> Forward()
+  std::shared_ptr<Mat> Forward()
   {
-    math->Sigm(in_->w_, out_->w_);
+    math->Sigm(in_, out_);
 
     return out_;
   }
 
   void Backward()
   {
-    math->SigmDeriv(in_->w_, in_->dw_, out_->w_, out_->dw_);
+    math->SigmDeriv(in_, in_->dw_, out_, out_->dw_);
   }
 
   void ClearDw()
@@ -31,12 +30,12 @@ class SigmOp : public Object
     std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);
   }
 
-  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  void GetParams(std::vector<std::shared_ptr<Mat>> &params)
   {
   }
 
-  std::shared_ptr<MatWdw> in_;
-  std::shared_ptr<MatWdw> out_;
+  std::shared_ptr<Mat> in_;
+  std::shared_ptr<Mat> out_;
 };
 
 #endif

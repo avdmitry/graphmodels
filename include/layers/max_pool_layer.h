@@ -6,9 +6,9 @@
 class MaxPoolLayer : public Object
 {
  public:
-  MaxPoolLayer(std::shared_ptr<MatWdw> &in, std::shared_ptr<MatWdw> *out,
-               int filter_width, int filter_height, int padding_x, int padding_y,
-               int stride_x, int stride_y)
+  MaxPoolLayer(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out,
+               int filter_width, int filter_height, int padding_x,
+               int padding_y, int stride_x, int stride_y)
   {
     in_ = in;
 
@@ -23,26 +23,27 @@ class MaxPoolLayer : public Object
     int out_width = (in_->size_[0] + params.padding_x * 2 - filter_width) /
                         params.stride_x +
                     1;
-    int out_height = (in_->size_[1] + params.padding_y * 2 - filter_height) /
-                         params.stride_y +
-                     1;
-    printf("maxpool out: %u %u %u %u\n", out_width, out_height, in_->size_[2],
-           in_->size_[3]);
-    out_ = std::shared_ptr<MatWdw>(
-        new MatWdw(out_width, out_height, in_->size_[2], in_->size_[3]));
+    int out_height =
+        (in_->size_[1] + params.padding_y * 2 - filter_height) /
+            params.stride_y +
+        1;
+    printf("maxpool out: %u %u %u %u\n", out_width, out_height,
+           in_->size_[2], in_->size_[3]);
+    out_ = std::shared_ptr<Mat>(new Mat(
+        out_width, out_height, in_->size_[2], in_->size_[3]));
     *out = out_;
   }
 
-  std::shared_ptr<MatWdw> Forward()
+  std::shared_ptr<Mat> Forward()
   {
-    math->MaxPool(in_->w_, out_->w_, params);
+    math->MaxPool(in_, out_, params);
 
     return out_;
   }
 
   void Backward()
   {
-    math->MaxPoolDeriv(in_->w_, in_->dw_, out_->w_, out_->dw_, params);
+    math->MaxPoolDeriv(in_, in_->dw_, out_, out_->dw_, params);
   }
 
   void ClearDw()
@@ -50,13 +51,13 @@ class MaxPoolLayer : public Object
     std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);
   }
 
-  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  void GetParams(std::vector<std::shared_ptr<Mat>> &params)
   {
   }
 
   ConvParams params;
-  std::shared_ptr<MatWdw> in_;
-  std::shared_ptr<MatWdw> out_;
+  std::shared_ptr<Mat> in_;
+  std::shared_ptr<Mat> out_;
 };
 
 #endif

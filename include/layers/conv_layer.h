@@ -6,7 +6,7 @@
 class ConvLayer : public Object
 {
  public:
-  ConvLayer(std::shared_ptr<MatWdw> &in, std::shared_ptr<MatWdw> *out,
+  ConvLayer(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out,
             int num_filters, int filter_width, int filter_height, int padding_x,
             int padding_y, int stride_x, int stride_y)
   {
@@ -27,33 +27,35 @@ class ConvLayer : public Object
         RandMatGauss(filter_width, filter_height, params.num_input_channels,
                      params.num_output_channels, 0.0, dev);
     biases_ =
-        std::shared_ptr<MatWdw>(new MatWdw(1, 1, params.num_output_channels));
-    std::fill(biases_->w_->data_.begin(), biases_->w_->data_.end(), 0.0);
+        std::shared_ptr<Mat>(new Mat(1, 1, params.num_output_channels));
+    std::fill(biases_->data_.begin(), biases_->data_.end(), 0.0);
 
     int out_width =
-        (in_->size_[0] + 2 * padding_x - params.filter_width) / stride_x + 1;
+        (in_->size_[0] + 2 * padding_x - params.filter_width) / stride_x +
+        1;
     int out_height =
-        (in_->size_[1] + 2 * padding_y - params.filter_height) / stride_y + 1;
+        (in_->size_[1] + 2 * padding_y - params.filter_height) / stride_y +
+        1;
 
     printf("conv out: %u %u %u %u -> %u %u %u %u\n", in_->size_[0],
-           in_->size_[1], in_->size_[2], in_->size_[3], out_width, out_height,
-           params.num_output_channels, in_->size_[3]);
-    out_ = std::shared_ptr<MatWdw>(new MatWdw(
+           in_->size_[1], in_->size_[2], in_->size_[3], out_width,
+           out_height, params.num_output_channels, in_->size_[3]);
+    out_ = std::shared_ptr<Mat>(new Mat(
         out_width, out_height, params.num_output_channels, in_->size_[3]));
     *out = out_;
   }
 
-  std::shared_ptr<MatWdw> Forward()
+  std::shared_ptr<Mat> Forward()
   {
-    math->Conv(in_->w_, filters_->w_, biases_->w_, out_->w_, params);
+    math->Conv(in_, filters_, biases_, out_, params);
 
     return out_;
   }
 
   void Backward()
   {
-    math->ConvDeriv(in_->w_, in_->dw_, filters_->w_, filters_->dw_,
-                    biases_->dw_, out_->w_, out_->dw_, params);
+    math->ConvDeriv(in_, in_->dw_, filters_, filters_->dw_,
+                    biases_->dw_, out_, out_->dw_, params);
   }
 
   void ClearDw()
@@ -63,17 +65,17 @@ class ConvLayer : public Object
     std::fill(biases_->dw_->data_.begin(), biases_->dw_->data_.end(), 0);
   }
 
-  void GetParams(std::vector<std::shared_ptr<MatWdw>> &params)
+  void GetParams(std::vector<std::shared_ptr<Mat>> &params)
   {
     params.emplace_back(filters_);
     params.emplace_back(biases_);
   }
 
   ConvParams params;
-  std::shared_ptr<MatWdw> in_;
-  std::shared_ptr<MatWdw> filters_;
-  std::shared_ptr<MatWdw> biases_;
-  std::shared_ptr<MatWdw> out_;
+  std::shared_ptr<Mat> in_;
+  std::shared_ptr<Mat> filters_;
+  std::shared_ptr<Mat> biases_;
+  std::shared_ptr<Mat> out_;
 };
 
 #endif

@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
   float reward = 0;
   for (int step = 0; step < 1000000; ++step)
   {
-    shared_ptr<MatWdw> state = env->GetState();
+    shared_ptr<Mat> state = env->GetState();
     int action = agent->Act(state);
     int r = env->SampleNextState(action);
     if (step > 0)
