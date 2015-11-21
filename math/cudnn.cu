@@ -126,9 +126,6 @@ int MathCudnn::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     return -1;
   }
 
-  float alpha = 1.0f;
-  float beta = 0.0f;
-
   // Process small matrices on cpu.
   if (m == 1 || n == 1 || k == 1)
   {
@@ -140,14 +137,12 @@ int MathCudnn::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     CopyToDevice(mat2);
     CopyToDevice(out);
 
-    cublasStatus_t status =
-        cublasSgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha,
-                    mat2->data_device_, mat2->size_[1], mat1->data_device_,
-                    mat1->size_[1], &beta, out->data_device_, out->size_[1]);
-    if (status != CUBLAS_STATUS_SUCCESS)
-    {
-      return -1;
-    }
+    float alpha = 1.0f;
+    float beta = 0.0f;
+    CheckCublas(cublasSgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k,
+                            &alpha, mat2->data_device_, mat2->size_[1],
+                            mat1->data_device_, mat1->size_[1], &beta,
+                            out->data_device_, out->size_[1]));
 
     CopyToHost(out);
   }
@@ -233,13 +228,44 @@ int MathCudnn::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
                         shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
                         shared_ptr<Mat> &out)
 {
-  return math_cpu->MulDeriv(mat1, mat2, mat1d, mat2d, out);
+  int m = mat1d->size_[0];
+  int n = mat1d->size_[1];
+  int k = mat2->size_[1];
+  float alpha = 1.0f;
+  float beta = 0.0f;
+  // SgemmCpu(true, false, true, m, n, k, alpha, &out->data_[0], k,
+  //         &mat2->data_[0], k, beta, &mat1d->data_[0], n);
+
+  CopyToDevice(mat1);
+  CopyToDevice(mat1d);
+  CopyToDevice(mat2);
+  CopyToDevice(mat2d);
+  CopyToDevice(out);
+
+  CheckCublas(cublasSgemm(cublasHandle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k,
+                          &alpha, mat2->data_device_, k, out->data_device_,
+                          out->size_[1], &beta, mat1d->data_device_, n));
+
+  m = mat2d->size_[1];
+  n = mat1->size_[1];
+  k = mat1->size_[0];
+  alpha = 1.0f;
+  beta = 0.0f;
+  // SgemmCpu(false, false, true, m, n, k, alpha, &out->data_[0], m,
+  //         &mat1->data_[0], n, beta, &mat2d->data_[0], m);
+
+  CheckCublas(cublasSgemm(cublasHandle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k,
+                          &alpha, out->data_device_, m, mat1->data_device_, n,
+                          &beta, mat2d->data_device_, m));
+
+  CopyToHost(mat1d);
+  CopyToHost(mat2d);
+
+  return 0;
 }
 
 int MathCudnn::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  int num_input = in_w->size_[2];
-
   CopyToDevice(in_w);
   CopyToDevice(out_w);
 
@@ -248,10 +274,10 @@ int MathCudnn::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
     return -1;
   }
 
-  int n = 1;
-  int c = num_input;
-  int h = in_w->size_[0];
-  int w = in_w->size_[1];
+  int n = in_w->size_[3];
+  int c = in_w->size_[2];
+  int h = in_w->size_[1];
+  int w = in_w->size_[0];
 
   CheckCudnn(cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType,
                                         n, c, h, w));
@@ -271,8 +297,6 @@ int MathCudnn::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
 int MathCudnn::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  int num_input = in_w->size_[2];
-
   CopyToDevice(in_w);
   CopyToDevice(out_w);
 
@@ -281,10 +305,10 @@ int MathCudnn::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
     return -1;
   }
 
-  int n = 1;
-  int c = num_input;
-  int h = in_w->size_[0];
-  int w = in_w->size_[1];
+  int n = in_w->size_[3];
+  int c = in_w->size_[2];
+  int h = in_w->size_[1];
+  int w = in_w->size_[0];
 
   CheckCudnn(cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType,
                                         n, c, h, w));
@@ -304,8 +328,6 @@ int MathCudnn::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
 int MathCudnn::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  int num_input = in_w->size_[2];
-
   CopyToDevice(in_w);
   CopyToDevice(out_w);
 
@@ -314,10 +336,10 @@ int MathCudnn::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
     return -1;
   }
 
-  int n = 1;
-  int c = num_input;
-  int h = in_w->size_[0];
-  int w = in_w->size_[1];
+  int n = in_w->size_[3];
+  int c = in_w->size_[2];
+  int h = in_w->size_[1];
+  int w = in_w->size_[0];
 
   CheckCudnn(cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType,
                                         n, c, h, w));
@@ -338,8 +360,6 @@ int MathCudnn::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 int MathCudnn::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                          shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int num_input = in_w->size_[2];
-
   CopyToDevice(in_w);
   CopyToDevice(in_dw);
   CopyToDevice(out_w);
@@ -353,10 +373,10 @@ int MathCudnn::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
     return -1;
   }
 
-  int n = 1;
-  int c = num_input;
-  int h = out_dw->size_[0];
-  int w = out_dw->size_[1];
+  int n = in_w->size_[3];
+  int c = in_w->size_[2];
+  int h = in_w->size_[1];
+  int w = in_w->size_[0];
 
   CheckCudnn(cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType,
                                         n, c, h, w));
@@ -378,8 +398,6 @@ int MathCudnn::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 int MathCudnn::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                          shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int num_input = in_w->size_[2];
-
   CopyToDevice(in_w);
   CopyToDevice(in_dw);
   CopyToDevice(out_w);
@@ -393,10 +411,10 @@ int MathCudnn::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
     return -1;
   }
 
-  int n = 1;
-  int c = num_input;
-  int h = out_dw->size_[0];
-  int w = out_dw->size_[1];
+  int n = in_w->size_[3];
+  int c = in_w->size_[2];
+  int h = in_w->size_[1];
+  int w = in_w->size_[0];
 
   CheckCudnn(cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType,
                                         n, c, h, w));
@@ -418,8 +436,6 @@ int MathCudnn::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 int MathCudnn::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                          shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int num_input = in_w->size_[2];
-
   CopyToDevice(in_w);
   CopyToDevice(in_dw);
   CopyToDevice(out_w);
@@ -433,10 +449,10 @@ int MathCudnn::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
     return -1;
   }
 
-  int n = 1;
-  int c = num_input;
-  int h = out_dw->size_[0];
-  int w = out_dw->size_[1];
+  int n = in_w->size_[3];
+  int c = in_w->size_[2];
+  int h = in_w->size_[1];
+  int w = in_w->size_[0];
 
   CheckCudnn(cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType,
                                         n, c, h, w));
@@ -460,6 +476,81 @@ shared_ptr<Mat> MathCudnn::Softmax(shared_ptr<Mat> &mat)
   return math_cpu->Softmax(mat);
 }
 
+int MathCudnn::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                  shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+{
+  int num_out = out->size_[2];
+  int num_in = filters->size_[0];
+  int num_batch = in->size_[3];
+
+  std::vector<int> in_size(in->size_);
+  std::vector<int> out_size(out->size_);
+  in->size_[0] = num_batch;
+  in->size_[1] = num_in;
+  in->size_[2] = 1;
+  in->size_[3] = 1;
+  out->size_[0] = num_batch;
+  out->size_[1] = num_out;
+  out->size_[2] = 1;
+  out->size_[3] = 1;
+  Mul(in, filters, out);
+  in->size_ = in_size;
+  out->size_ = out_size;
+
+  // math->Add(biases, out, out);
+  for (int batch = 0; batch < num_batch; ++batch)
+  {
+    int out_offset = num_out * batch;
+    for (int i = 0; i < num_out; ++i)
+    {
+      out->data_[out_offset + i] += biases->data_[i];
+    }
+  }
+
+  return 0;
+}
+
+int MathCudnn::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                       shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+{
+  int num_out = out->size_[2];
+  int num_in = filters->size_[0];
+  int num_batch = in->size_[3];
+
+  std::vector<int> in_size(in->size_);
+  std::vector<int> in_dw_size(in->dw_->size_);
+  std::vector<int> out_dw_size(out->dw_->size_);
+  in->size_[0] = num_batch;
+  in->size_[1] = num_in;
+  in->size_[2] = 1;
+  in->size_[3] = 1;
+  in->dw_->size_[0] = num_batch;
+  in->dw_->size_[1] = num_in;
+  in->dw_->size_[2] = 1;
+  in->dw_->size_[3] = 1;
+  out->dw_->size_[0] = num_batch;
+  out->dw_->size_[1] = num_out;
+  out->dw_->size_[2] = 1;
+  out->dw_->size_[3] = 1;
+  MulDeriv(in, filters, in->dw_, filters->dw_, out->dw_);
+  in->size_ = in_size;
+  in->dw_->size_ = in_dw_size;
+  out->dw_->size_ = out_dw_size;
+
+  // math->AddDeriv(biases->dw_, out->dw_, out->dw_);
+  for (int batch = 0; batch < num_batch; ++batch)
+  {
+    int out_offset = num_out * batch;
+    for (int i = 0; i < num_out; ++i)
+    {
+      float dw = out->dw_->data_[out_offset + i];
+      biases->dw_->data_[i] += dw;
+    }
+  }
+
+  return 0;
+}
+
 int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
                     shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
                     ConvParams &conv_params)
@@ -474,6 +565,7 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   int num_filters = filters_w->size_[3];
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
+  int batch_size = in_w->size_[3];
 
   int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
   int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
@@ -483,7 +575,7 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   CopyToDevice(biases_w);
   CopyToDevice(out_w);
 
-  int n = 1;
+  int n = batch_size;
   int c = num_input;
   int h = in_height;
   int w = in_width;
@@ -510,13 +602,13 @@ int MathCudnn::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   h = tensorOuputDimA[2];
   w = tensorOuputDimA[3];*/
 
-  n = 1;
+  n = batch_size;
   c = num_filters;
   h = out_height;
   w = out_width;
   // printf("%u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
-  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, n, c, 1,
+  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, 1, c, 1,
                              1);
 
   /*
@@ -596,6 +688,7 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int num_filters = filters_w->size_[3];
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
+  int batch_size = in_w->size_[3];
 
   int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
   int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
@@ -607,13 +700,13 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   CopyToDevice(biases_dw);
   CopyToDevice(out_dw);
 
-  int n = 1;
+  int n = batch_size;
   int c = num_filters;
   int h = out_height;
   int w = out_width;
   // printf("convderiv %u %u %u %u\n", n, c, h, w);
   cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType, n, c, h, w);
-  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, n, c, 1,
+  cudnnSetTensor4dDescriptor(biasTensorDesc, tensorFormat, dataType, 1, c, 1,
                              1);
 
   static const int kDims = 4;
@@ -629,7 +722,7 @@ int MathCudnn::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   CheckCudnn(cudnnSetConvolutionNdDescriptor(
       convDesc, kConvDims, padding, stride, upscale, CUDNN_CROSS_CORRELATION));
 
-  n = 1;
+  n = batch_size;
   c = num_input;
   h = in_height;
   w = in_width;
@@ -710,6 +803,7 @@ int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int num_filters = in_w->size_[2];
+  int batch_size = in_w->size_[3];
 
   int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
   int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
@@ -717,7 +811,7 @@ int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   CopyToDevice(in_w);
   CopyToDevice(out_w);
 
-  int n = 1;
+  int n = batch_size;
   int c = num_filters;
   int h = in_height;
   int w = in_width;
@@ -741,7 +835,7 @@ int MathCudnn::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   h = tensorOuputDimA[2];
   w = tensorOuputDimA[3];*/
 
-  n = 1;
+  n = batch_size;
   c = num_filters;
   h = out_height;
   w = out_width;
@@ -773,6 +867,7 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int num_filters = in_w->size_[2];
+  int batch_size = in_w->size_[3];
 
   int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
   int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
@@ -782,7 +877,7 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   CopyToDevice(out_w);
   CopyToDevice(out_dw);
 
-  int n = 1;
+  int n = batch_size;
   int c = num_filters;
   int h = out_height;
   int w = out_width;
@@ -797,7 +892,7 @@ int MathCudnn::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 
   cudnnSetTensor4dDescriptor(srcTensorDesc, tensorFormat, dataType, n, c, h, w);
 
-  n = 1;
+  n = batch_size;
   c = num_filters;
   h = in_height;
   w = in_width;

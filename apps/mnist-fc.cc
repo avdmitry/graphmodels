@@ -7,17 +7,20 @@ using std::string;
 using std::vector;
 using std::shared_ptr;
 
-// 4.333 epoch| cost: 0.026| test acc: 0.979
+// bs_1: 4.333 epoch| cost: 0.026| test acc: 0.979
+// bs_10: 2.500 epoch| cost: 0.003| test acc: 0.979
+// bs_10: 3.500 epoch| cost: 0.002| test acc: 0.980
+// bs_10: 4.000 epoch| cost: 0.002| test acc: 0.981
 
 class FcNet : public Model
 {
  public:
-  FcNet(int num_input, int num_output)
+  FcNet(int num_input, int num_output, int batch_size)
   {
     static const int num_hidden_units = 256;
 
     graph_ = shared_ptr<Graph>(new Graph);
-    input_ = shared_ptr<Mat>(new Mat(num_input, 1));
+    input_ = shared_ptr<Mat>(new Mat(num_input, 1, 1, batch_size));
 
     shared_ptr<Mat> a1mat, h1mat;
     graph_->Process(
@@ -63,30 +66,42 @@ int main(int argc, char *argv[])
   srand(0);
 
   math = shared_ptr<Math>(new MathCpu);
+  // math = shared_ptr<Math>(new MathCudnn);
   math->Init();
 
   datasets::Mnist mnist(data_path);
   vector<shared_ptr<datasets::MnistObj>> &train = mnist.train_;
   vector<shared_ptr<datasets::MnistObj>> &test = mnist.test_;
-  printf("%lu\n", train.size());
-  printf("%lu\n", test.size());
+  printf("train: %lu\n", train.size());
+  printf("test: %lu\n", test.size());
 
-  shared_ptr<Model> net(new FcNet(784, 10));
+  int batch_size = 10;
+
+  shared_ptr<Model> net(new FcNet(784, 10, batch_size));
   float learning_rate = 0.001;
 
   int epoch_num = 0;
+  int steps_num = 1000000;
   float cost = 0.0;
+  int train_idx = 0;
   clock_t begin_time = clock();
-  for (int step = 0; step < 1000000; ++step)
+  for (int step = 0; step < steps_num; ++step)
   {
-    int train_idx = step % train.size();
-    // int train_idx = Random01()*(train.size()-1);
-    for (int idx = 0; idx < 784; ++idx)
+    vector<int> idx_target;
+    for (int batch = 0; batch < batch_size; ++batch)
     {
-      net->input_->data_[idx] = train[train_idx]->image[idx];
-    }
-    int idx_target = train[train_idx]->label;
+      for (int idx = 0; idx < 784; ++idx)
+      {
+        net->input_->data_[idx + batch * 784] = train[train_idx]->image[idx];
+      }
+      idx_target.emplace_back(train[train_idx]->label);
 
+      train_idx++;
+      if (train_idx == train.size())
+      {
+        train_idx = 0;
+      }
+    }
     net->Forward();
     // printf("output: %u %u %u %u\n", logprobs->size_[0], logprobs->size_[1],
     //         logprobs->size_[2], logprobs->size_[3]);
@@ -95,29 +110,31 @@ int main(int argc, char *argv[])
 
     net->Backward();
 
-    LearnRmsprop(net, learning_rate);
+    LearnRmsprop(net, learning_rate, batch_size);
 
     bool new_line = false;
     int output_each = 1000;
     int time_each = 1000;
     int validate_each = 10000;
 
-    int epoch_num_curr = step / train.size();
+    int epoch_num_curr = step*batch_size / train.size();
     if (epoch_num != epoch_num_curr)
     {
       epoch_num = epoch_num_curr;
       learning_rate /= 2;
       printf("learning rate: %.6f\n", learning_rate);
     }
-    if (step % output_each == 0 && step != 0)
+
+    if (step*batch_size % output_each == 0 && step != 0)
     {
-      printf("%.3f epoch| cost: %.3f", 1.0f * step / train.size(),
-             cost / output_each);
+      printf("%.3f epoch| cost: %.3f", 1.0f * step * batch_size / train.size(),
+             cost / output_each / batch_size);
       cost = 0.0;
       new_line = true;
     }
-    if (step % validate_each == 0 && step != 0)
+    if (step*batch_size % validate_each == 0 && step != 0)
     {
+      net->SetBatchSize(1);
       float acc = 0;
       for (int test_idx = 0; test_idx < test.size(); ++test_idx)
       {
@@ -129,18 +146,19 @@ int main(int argc, char *argv[])
 
         net->Forward();
 
-        int idx_pred = MaxIdx(net->output_->data_);
+        int idx_pred = MaxIdx(net->output_);
         if (idx_gt == idx_pred)
         {
           acc += 1;
         }
       }
       acc /= test.size();
+      net->SetBatchSize(batch_size);
 
       printf("| test acc: %.3f", acc);
       new_line = true;
     }
-    if (step % time_each == 0 && step != 0)
+    if (step*batch_size % time_each == 0 && step != 0)
     {
       float time_curr = float(clock() - begin_time) / CLOCKS_PER_SEC;
       printf("| time: %.3f s", time_curr);

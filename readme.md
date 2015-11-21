@@ -1,6 +1,6 @@
 ### Graph Models
 
-Ultimate goal is to implement reference and optimized (blas, cuda, etc.) algorithms on C++ for three major class of Graph Models:
+Ultimate goal is to implement reference and optimized (blas, cuda, etc.) algorithms on C++ for three major class of Machine learning\Deep learning\AI Graph Models:
 - *Feed-forward Neural Networks* including *Convolutional Neural Network* model.
 - *Reccurent Neural Networks* including *Long Short-Term Memory* model.
 - *Probabilistic Graphical Models*.
@@ -17,7 +17,7 @@ The following models are implemented:
 
 - Deep Feed-forward Neural Networks: fully-connected and Convolutional Neural Network **CNN**.
 
-  - Fully-connected example (~98% accuracy in about 5 min on i7 CPU): [mnist-fc](apps/mnist-fc.cc)
+  - Fully-connected example (~98% accuracy in about 1 min on i7 CPU): [mnist-fc](apps/mnist-fc.cc)
   - Convolutional example (~99% accuracy in about 3 min on i7 CPU): [mnist-conv](apps/mnist-conv.cc)
 
 #### References

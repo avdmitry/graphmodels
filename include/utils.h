@@ -41,6 +41,7 @@ class Object
 
   virtual std::shared_ptr<Mat> Forward() = 0;
   virtual void Backward() = 0;
+  virtual void SetBatchSize(int new_size) = 0;
   virtual void ClearDw() = 0;
   virtual void GetParams(std::vector<std::shared_ptr<Mat>> &params) = 0;
 };
@@ -79,6 +80,14 @@ class Graph
     if (need_clear)
     {
       backward_.clear();
+    }
+  }
+
+  void SetBatchSize(int new_size)
+  {
+    for (int i = 0; i < forward_.size(); ++i)
+    {
+      forward_[i]->SetBatchSize(new_size);
     }
   }
 
@@ -123,6 +132,11 @@ class Model
     graph_->Backward(false);
   }
 
+  void SetBatchSize(int new_size)
+  {
+    graph_->SetBatchSize(new_size);
+  }
+
   virtual void Create(int idx) = 0;
 
   virtual void ClearPrevState() = 0;
@@ -153,14 +167,14 @@ inline int Randi(int l, int r)
 std::shared_ptr<Mat> RandMat(int n, int d, float l, float r);
 
 std::shared_ptr<Mat> RandMatGauss(int n, int d, int m, int f, float mean,
-                                     float stddev);
+                                  float stddev);
 
-int MaxIdx(const std::vector<float> &w);
+int MaxIdx(const std::shared_ptr<Mat> &mat);
 
 int SampleIdx(std::vector<float> &w);
 
 void Trim(std::string *str);
 
-float SoftmaxLoss(std::shared_ptr<Model> &net, int idx_target);
+float SoftmaxLoss(std::shared_ptr<Model> &net, std::vector<int> &idx_target);
 
 #endif

@@ -35,6 +35,12 @@ class ExtractRowOp : public Object
     }
   }
 
+  void SetBatchSize(int new_size)
+  {
+    mat_->size_[3] = new_size;
+    out_->size_[3] = new_size;
+  }
+
   void ClearDw()
   {
     std::fill(mat_->dw_->data_.begin(), mat_->dw_->data_.end(), 0);

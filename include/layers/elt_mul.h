@@ -28,6 +28,13 @@ class EltMulOp : public Object
     math->ElmtMulDeriv(mat1_, mat2_, mat1_->dw_, mat2_->dw_, out_->dw_);
   }
 
+  void SetBatchSize(int new_size)
+  {
+    mat1_->size_[3] = new_size;
+    mat2_->size_[3] = new_size;
+    out_->size_[3] = new_size;
+  }
+
   void ClearDw()
   {
     std::fill(mat1_->dw_->data_.begin(), mat1_->dw_->data_.end(), 0);

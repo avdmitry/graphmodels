@@ -433,6 +433,18 @@ shared_ptr<Mat> MathCuda::Softmax(shared_ptr<Mat> &mat)
   return math_cpu->Softmax(mat);
 }
 
+int MathCuda::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                 shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+{
+  return math_cpu->Fc(in, filters, biases, out);
+}
+
+int MathCuda::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                      shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+{
+  return math_cpu->FcDeriv(in, filters, biases, out);
+}
+
 int MathCuda::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
                    shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
                    ConvParams &conv_params)

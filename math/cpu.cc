@@ -145,13 +145,13 @@ int MathCpu::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
 {
   int mat1_size1 = mat1->size_[1];
   int mat2_size1 = mat2->size_[1];
-  for (int i = 0; i < mat1->size_[0]; i++)
-  {  // loop over rows of m1
-    for (int j = 0; j < mat2_size1; j++)
-    {  // loop over cols of m2
-      for (int k = 0; k < mat1_size1; k++)
+  for (int i = 0; i < mat1->size_[0]; ++i)
+  {
+    for (int j = 0; j < mat2_size1; ++j)
+    {
+      float dw = out->data_[mat2_size1 * i + j];
+      for (int k = 0; k < mat1_size1; ++k)
       {
-        float dw = out->data_[mat2_size1 * i + j];
         int idx1 = mat1_size1 * i + k;
         int idx2 = mat2_size1 * k + j;
         mat1d->data_[idx1] += mat2->data_[idx2] * dw;
@@ -159,6 +159,23 @@ int MathCpu::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
       }
     }
   }
+
+  /*int m = mat1d->size_[0];
+  int n = mat1d->size_[1];
+  int k = mat2->size_[1];
+  float alpha = 1.0f;
+  float beta = 0.0f;
+  SgemmCpu(true, false, true, m, n, k, alpha, &out->data_[0], k,
+           &mat2->data_[0], k, beta, &mat1d->data_[0], n);
+
+  m = mat2d->size_[1];
+  n = mat1->size_[1];
+  k = mat1->size_[0];
+  alpha = 1.0f;
+  beta = 0.0f;
+  SgemmCpu(false, false, true, m, n, k, alpha, &out->data_[0], m,
+           &mat1->data_[0], n, beta, &mat2d->data_[0], m);*/
+
   return 0;
 }
 
@@ -226,29 +243,88 @@ int MathCpu::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 
 shared_ptr<Mat> MathCpu::Softmax(shared_ptr<Mat> &mat)
 {
-  shared_ptr<Mat> out(
-      new Mat(mat->size_[0], mat->size_[1], mat->size_[2], mat->size_[3]));
-  float maxval = mat->data_[0];
-  for (int i = 0; i < mat->data_.size(); i++)
+  shared_ptr<Mat> out(new Mat(mat->size_));
+  int num_elements = mat->size_[0] * mat->size_[1] * mat->size_[2];
+  for (int batch = 0; batch < mat->size_[3]; ++batch)
   {
-    if (mat->data_[i] > maxval)
+    int offset = batch * num_elements;
+    float maxval = mat->data_[offset];
+    for (int i = 0; i < num_elements; i++)
     {
-      maxval = mat->data_[i];
+      if (mat->data_[offset + i] > maxval)
+      {
+        maxval = mat->data_[offset + i];
+      }
+    }
+
+    float sum = 0.0;
+    for (int i = 0; i < num_elements; i++)
+    {
+      out->data_[offset + i] = exp(mat->data_[offset + i] - maxval);
+      sum += out->data_[offset + i];
+    }
+    for (int i = 0; i < num_elements; i++)
+    {
+      out->data_[offset + i] /= sum;
     }
   }
 
-  float sum = 0.0;
-  for (int i = 0; i < out->data_.size(); i++)
+  return out;
+}
+
+int MathCpu::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+{
+  int num_out = out->size_[2];
+  int num_in = filters->size_[0];
+  int num_batch = in->size_[3];
+
+  for (int batch = 0; batch < num_batch; ++batch)
   {
-    out->data_[i] = exp(mat->data_[i] - maxval);
-    sum += out->data_[i];
-  }
-  for (int i = 0; i < out->data_.size(); i++)
-  {
-    out->data_[i] /= sum;
+    int in_offset = num_in * batch;
+    int out_offset = num_out * batch;
+    for (int i = 0; i < num_out; ++i)
+    {
+      float result = biases->data_[i];
+      for (int j = 0; j < num_in; ++j)
+      {
+        //int filters_idx = num_out * j + i;
+        int filters_idx = num_in * i + j;
+        result += in->data_[in_offset + j] * filters->data_[filters_idx];
+      }
+      out->data_[out_offset + i] = result;
+    }
   }
 
-  return out;
+  return 0;
+}
+
+int MathCpu::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                     shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+{
+  int num_out = out->size_[2];
+  int num_in = filters->size_[0];
+  int num_batch = in->size_[3];
+
+  for (int batch = 0; batch < num_batch; ++batch)
+  {
+    int in_offset = num_in * batch;
+    int out_offset = num_out * batch;
+    for (int i = 0; i < num_out; ++i)
+    {
+      float dw = out->dw_->data_[out_offset + i];
+      for (int j = 0; j < num_in; ++j)
+      {
+        //int filters_idx = num_out * j + i;
+        int filters_idx = num_in * i + j;
+        in->dw_->data_[in_offset + j] += dw * filters->data_[filters_idx];
+        filters->dw_->data_[filters_idx] += dw * in->data_[in_offset + j];
+      }
+      biases->dw_->data_[i] += dw;
+    }
+  }
+
+  return 0;
 }
 
 int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
@@ -265,6 +341,7 @@ int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   int num_filters = conv_params.num_output_channels;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
+  int batch_size = in_w->size_[3];
   float *in_w_data = &in_w->data_[0];
   float *filters_w_data = &filters_w->data_[0];
   float *biases_w_data = &biases_w->data_[0];
@@ -273,47 +350,57 @@ int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
   int out_width = (in_width + 2 * padding_x - filter_width) / stride_x + 1;
   int out_height = (in_height + 2 * padding_y - filter_height) / stride_y + 1;
 
-  for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+  for (int batch = 0; batch < batch_size; ++batch)
   {
-    int filter_start_x = -padding_x;
-    for (int out_x = 0; out_x < out_width; filter_start_x += stride_x, ++out_x)
-    {
-      int filter_start_y = -padding_y;
-      for (int out_y = 0; out_y < out_height;
-           filter_start_y += stride_y, ++out_y)
-      {
-        float res = 0.0;
-        for (int filter_x = 0; filter_x < filter_width; ++filter_x)
-        {
-          int in_x = filter_start_x + filter_x;
-          if (in_x < 0 || in_x >= in_width)
-          {
-            continue;
-          }
+    int in_offset = in_width * in_height * num_input * batch;
+    int out_offset = out_width * out_height * num_filters * batch;
 
-          for (int filter_y = 0; filter_y < filter_height; ++filter_y)
+    for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+    {
+      int filter_start_x = -padding_x;
+      for (int out_x = 0; out_x < out_width;
+           filter_start_x += stride_x, ++out_x)
+      {
+        int filter_start_y = -padding_y;
+        for (int out_y = 0; out_y < out_height;
+             filter_start_y += stride_y, ++out_y)
+        {
+          float res = 0.0;
+          for (int filter_x = 0; filter_x < filter_width; ++filter_x)
           {
-            int in_y = filter_start_y + filter_y;
-            if (in_y < 0 || in_y >= in_height)
+            int in_x = filter_start_x + filter_x;
+            if (in_x < 0 || in_x >= in_width)
             {
               continue;
             }
 
-            for (int in_channel = 0; in_channel < num_input; ++in_channel)
+            for (int filter_y = 0; filter_y < filter_height; ++filter_y)
             {
-              int filter_idx =
-                  ((filter_channel * num_input + in_channel) * filter_height +
-                   filter_y) *
-                      filter_width +
-                  filter_x;
-              int in_idx = (in_channel * in_height + in_y) * in_width + in_x;
-              res += in_w_data[in_idx] * filters_w_data[filter_idx];
+              int in_y = filter_start_y + filter_y;
+              if (in_y < 0 || in_y >= in_height)
+              {
+                continue;
+              }
+
+              for (int in_channel = 0; in_channel < num_input; ++in_channel)
+              {
+                int filter_idx =
+                    ((filter_channel * num_input + in_channel) * filter_height +
+                     filter_y) *
+                        filter_width +
+                    filter_x;
+                int in_idx = in_offset +
+                             (in_channel * in_height + in_y) * in_width + in_x;
+                res += in_w_data[in_idx] * filters_w_data[filter_idx];
+              }
             }
           }
+          int out_idx = out_offset +
+                        (filter_channel * out_height + out_y) * out_width +
+                        out_x;
+          res += biases_w_data[filter_channel];
+          out_w_data[out_idx] = res;
         }
-        res += biases_w_data[filter_channel];
-        out_w_data[(filter_channel * out_height + out_y) * out_width + out_x] =
-            res;
       }
     }
   }
@@ -336,6 +423,7 @@ int MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int num_filters = conv_params.num_output_channels;
   int in_width = in_dw->size_[0];
   int in_height = in_dw->size_[1];
+  int batch_size = in_w->size_[3];
   float *in_w_data = &in_w->data_[0];
   float *in_dw_data = &in_dw->data_[0];
   float *filters_w_data = &filters_w->data_[0];
@@ -346,50 +434,60 @@ int MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int out_width = (in_width + 2 * padding_x - filter_width) / stride_x + 1;
   int out_height = (in_height + 2 * padding_y - filter_height) / stride_y + 1;
 
-  for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+  for (int batch = 0; batch < batch_size; ++batch)
   {
-    int filter_start_x = -padding_x;
-    for (int out_x = 0; out_x < out_width; filter_start_x += stride_x, ++out_x)
+    int in_offset = in_width * in_height * num_input * batch;
+    int out_offset = out_width * out_height * num_filters * batch;
+
+    for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
     {
-      int filter_start_y = -padding_y;
-      for (int out_y = 0; out_y < out_height;
-           filter_start_y += stride_y, ++out_y)
+      int filter_start_x = -padding_x;
+      for (int out_x = 0; out_x < out_width;
+           filter_start_x += stride_x, ++out_x)
       {
-        // grad
-        int dw_idx = (filter_channel * out_height + out_y) * out_width + out_x;
-        float dw = out_dw_data[dw_idx];
-
-        for (int filter_x = 0; filter_x < filter_width; ++filter_x)
+        int filter_start_y = -padding_y;
+        for (int out_y = 0; out_y < out_height;
+             filter_start_y += stride_y, ++out_y)
         {
-          int in_x = filter_start_x + filter_x;
-          if (in_x < 0 || in_x >= in_width)
-          {
-            continue;
-          }
+          // grad
+          int dw_idx = out_offset +
+                       (filter_channel * out_height + out_y) * out_width +
+                       out_x;
+          float dw = out_dw_data[dw_idx];
 
-          for (int filter_y = 0; filter_y < filter_height; ++filter_y)
+          for (int filter_x = 0; filter_x < filter_width; ++filter_x)
           {
-            int in_y = filter_start_y + filter_y;
-            if (in_y < 0 || in_y >= in_height)
+            int in_x = filter_start_x + filter_x;
+            if (in_x < 0 || in_x >= in_width)
             {
               continue;
             }
 
-            for (int in_channel = 0; in_channel < num_input; ++in_channel)
+            for (int filter_y = 0; filter_y < filter_height; ++filter_y)
             {
-              int filter_idx =
-                  ((filter_channel * num_input + in_channel) * filter_height +
-                   filter_y) *
-                      filter_width +
-                  filter_x;
-              int in_idx = (in_channel * in_height + in_y) * in_width + in_x;
+              int in_y = filter_start_y + filter_y;
+              if (in_y < 0 || in_y >= in_height)
+              {
+                continue;
+              }
 
-              in_dw_data[in_idx] += filters_w_data[filter_idx] * dw;
-              filters_dw_data[filter_idx] += in_w_data[in_idx] * dw;
+              for (int in_channel = 0; in_channel < num_input; ++in_channel)
+              {
+                int filter_idx =
+                    ((filter_channel * num_input + in_channel) * filter_height +
+                     filter_y) *
+                        filter_width +
+                    filter_x;
+                int in_idx = in_offset +
+                             (in_channel * in_height + in_y) * in_width + in_x;
+
+                in_dw_data[in_idx] += filters_w_data[filter_idx] * dw;
+                filters_dw_data[filter_idx] += in_w_data[in_idx] * dw;
+              }
             }
           }
+          biases_dw_data[filter_channel] += dw;
         }
-        biases_dw_data[filter_channel] += dw;
       }
     }
   }
@@ -409,49 +507,61 @@ int MathCpu::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   int num_filters = in_w->size_[2];
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
+  int batch_size = in_w->size_[3];
   float *in_w_data = &in_w->data_[0];
   float *out_w_data = &out_w->data_[0];
 
   int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
   int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
 
-  for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+  for (int batch = 0; batch < batch_size; ++batch)
   {
-    int filter_start_x = -padding_x;
-    for (int out_x = 0; out_x < out_width; filter_start_x += stride_x, ++out_x)
-    {
-      int filter_start_y = -padding_y;
-      for (int out_y = 0; out_y < out_height;
-           filter_start_y += stride_y, ++out_y)
-      {
-        float res = -FLT_MAX;
-        for (int filter_x = 0; filter_x < filter_width; ++filter_x)
-        {
-          int in_x = filter_start_x + filter_x;
-          if (in_x < 0 || in_x >= in_width)
-          {
-            continue;
-          }
+    int in_offset = in_width * in_height * num_filters * batch;
+    int out_offset = out_width * out_height * num_filters * batch;
 
-          for (int filter_y = 0; filter_y < filter_height; ++filter_y)
+    for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+    {
+      int filter_start_x = -padding_x;
+      for (int out_x = 0; out_x < out_width;
+           filter_start_x += stride_x, ++out_x)
+      {
+        int filter_start_y = -padding_y;
+        for (int out_y = 0; out_y < out_height;
+             filter_start_y += stride_y, ++out_y)
+        {
+          float res = -FLT_MAX;
+          for (int filter_x = 0; filter_x < filter_width; ++filter_x)
           {
-            int in_y = filter_start_y + filter_y;
-            if (in_y < 0 || in_y >= in_height)
+            int in_x = filter_start_x + filter_x;
+            if (in_x < 0 || in_x >= in_width)
             {
               continue;
             }
 
-            int idx = (filter_channel * in_height + in_y) * in_width + in_x;
-            float curr = in_w_data[idx];
-            if (curr > res)
+            for (int filter_y = 0; filter_y < filter_height; ++filter_y)
             {
-              res = curr;
+              int in_y = filter_start_y + filter_y;
+              if (in_y < 0 || in_y >= in_height)
+              {
+                continue;
+              }
+
+              int in_idx = in_offset +
+                           (filter_channel * in_height + in_y) * in_width +
+                           in_x;
+              float curr = in_w_data[in_idx];
+              if (curr > res)
+              {
+                res = curr;
+              }
             }
           }
-        }
 
-        out_w_data[(filter_channel * out_height + out_y) * out_width + out_x] =
-            res;
+          int out_idx = out_offset +
+                        (filter_channel * out_height + out_y) * out_width +
+                        out_x;
+          out_w_data[out_idx] = res;
+        }
       }
     }
   }
@@ -472,6 +582,7 @@ int MathCpu::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int num_filters = in_w->size_[2];
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
+  int batch_size = in_w->size_[3];
   float *in_w_data = &in_w->data_[0];
   float *in_dw_data = &in_dw->data_[0];
   float *out_dw_data = &out_dw->data_[0];
@@ -479,46 +590,56 @@ int MathCpu::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
   int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
 
-  for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+  for (int batch = 0; batch < batch_size; ++batch)
   {
-    int filter_start_x = -padding_x;
-    for (int out_x = 0; out_x < out_width; filter_start_x += stride_x, ++out_x)
-    {
-      int filter_start_y = -padding_y;
-      for (int out_y = 0; out_y < out_height;
-           filter_start_y += stride_y, ++out_y)
-      {
-        float res = -FLT_MAX;
-        int res_idx = 0;
-        for (int filter_x = 0; filter_x < filter_width; ++filter_x)
-        {
-          int in_x = filter_start_x + filter_x;
-          if (in_x < 0 || in_x >= in_width)
-          {
-            continue;
-          }
+    int in_offset = in_width * in_height * num_filters * batch;
+    int out_offset = out_width * out_height * num_filters * batch;
 
-          for (int filter_y = 0; filter_y < filter_height; ++filter_y)
+    for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+    {
+      int filter_start_x = -padding_x;
+      for (int out_x = 0; out_x < out_width;
+           filter_start_x += stride_x, ++out_x)
+      {
+        int filter_start_y = -padding_y;
+        for (int out_y = 0; out_y < out_height;
+             filter_start_y += stride_y, ++out_y)
+        {
+          float res = -FLT_MAX;
+          int res_idx = 0;
+          for (int filter_x = 0; filter_x < filter_width; ++filter_x)
           {
-            int in_y = filter_start_y + filter_y;
-            if (in_y < 0 || in_y >= in_height)
+            int in_x = filter_start_x + filter_x;
+            if (in_x < 0 || in_x >= in_width)
             {
               continue;
             }
 
-            int idx = (filter_channel * in_height + in_y) * in_width + in_x;
-            float curr = in_w_data[idx];
-            if (curr > res)
+            for (int filter_y = 0; filter_y < filter_height; ++filter_y)
             {
-              res = curr;
-              res_idx = idx;
+              int in_y = filter_start_y + filter_y;
+              if (in_y < 0 || in_y >= in_height)
+              {
+                continue;
+              }
+
+              int in_idx = in_offset +
+                           (filter_channel * in_height + in_y) * in_width +
+                           in_x;
+              float curr = in_w_data[in_idx];
+              if (curr > res)
+              {
+                res = curr;
+                res_idx = in_idx;
+              }
             }
           }
-        }
 
-        in_dw_data[res_idx] +=
-            out_dw_data[(filter_channel * out_height + out_y) * out_width +
-                        out_x];
+          int out_idx = out_offset +
+                        (filter_channel * out_height + out_y) * out_width +
+                        out_x;
+          in_dw_data[res_idx] += out_dw_data[out_idx];
+        }
       }
     }
   }

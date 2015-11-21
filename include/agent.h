@@ -129,7 +129,7 @@ class DQNAgent : public Agent
       // Greedy wrt Q function.
       *net_->input_ = *state;
       net_->Forward();
-      a = MaxIdx(net_->output_->data_);
+      a = MaxIdx(net_->output_);
     }
 
     // Shift state memory.
@@ -149,8 +149,7 @@ class DQNAgent : public Agent
     *net_->input_ = *observation->s1_;
     net_->Forward();
     std::shared_ptr<Mat> &out = net_->output_;
-    float qmax =
-        observation->r0_ + gamma_ * out->data_[MaxIdx(out->data_)];
+    float qmax = observation->r0_ + gamma_ * out->data_[MaxIdx(out)];
 
     // Predict.
     *net_->input_ = *observation->s0_;

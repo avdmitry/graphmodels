@@ -25,6 +25,12 @@ class ReluOp : public Object
     math->ReluDeriv(in_, in_->dw_, out_, out_->dw_);
   }
 
+  void SetBatchSize(int new_size)
+  {
+    in_->size_[3] = new_size;
+    out_->size_[3] = new_size;
+  }
+
   void ClearDw()
   {
     std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);

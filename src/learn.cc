@@ -2,7 +2,7 @@
 
 using std::shared_ptr;
 
-void LearnSGD(shared_ptr<Model> &model, float learning_rate)
+void LearnSGD(shared_ptr<Model> &model, float learning_rate, int batch_size)
 {
   for (size_t j = 0; j < model->params_.size(); ++j)
   {
@@ -12,7 +12,7 @@ void LearnSGD(shared_ptr<Model> &model, float learning_rate)
     {
       if (mat->dw_->data_[i] != 0)
       {
-        mat->data_[i] += -learning_rate * mat->dw_->data_[i];
+        mat->data_[i] += -learning_rate * (mat->dw_->data_[i] / batch_size);
       }
     }
   }
@@ -22,7 +22,7 @@ void LearnSGD(shared_ptr<Model> &model, float learning_rate)
   model->graph_->ClearDw();
 }
 
-void LearnRmsprop(shared_ptr<Model> &model, float learning_rate)
+void LearnRmsprop(shared_ptr<Model> &model, float learning_rate, int batch_size)
 {
   float decay_rate = 0.999;
   float smooth_eps = 1e-8;
@@ -35,7 +35,7 @@ void LearnRmsprop(shared_ptr<Model> &model, float learning_rate)
     for (size_t i = 0; i < mat->data_.size(); ++i)
     {
       // Rmsprop adaptive learning rate.
-      float mdwi = mat->dw_->data_[i];
+      float mdwi = mat->dw_->data_[i] / batch_size;
       mat_prev->data_[i] = decay_rate * mat_prev->data_[i] +
                                (1.0 - decay_rate) * mdwi * mdwi;
 

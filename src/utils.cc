@@ -21,7 +21,7 @@ shared_ptr<Mat> RandMat(int n, int d, float l, float r)
 }
 
 shared_ptr<Mat> RandMatGauss(int n, int d, int m, int f, float mean,
-                                float stddev)
+                             float stddev)
 {
   shared_ptr<Mat> mat(new Mat(n, d, m, f));
 
@@ -35,13 +35,14 @@ shared_ptr<Mat> RandMatGauss(int n, int d, int m, int f, float mean,
 }
 
 // Argmax of array.
-int MaxIdx(const vector<float> &w)
+int MaxIdx(const shared_ptr<Mat> &mat)
 {
-  float max_value = w[0];
+  float max_value = mat->data_[0];
   int max_idx = 0;
-  for (int i = 1; i < w.size(); ++i)
+  int size = mat->size_[0] * mat->size_[1] * mat->size_[2] * mat->size_[3];
+  for (int i = 1; i < size; ++i)
   {
-    float value = w[i];
+    float value = mat->data_[i];
     if (value > max_value)
     {
       max_idx = i;
@@ -85,11 +86,20 @@ void Trim(string *str)
   }
 }
 
-float SoftmaxLoss(shared_ptr<Model> &net, int idx_target)
+float SoftmaxLoss(shared_ptr<Model> &net, vector<int> &idx_target)
 {
   shared_ptr<Mat> &logprobs = net->output_;
   shared_ptr<Mat> probs = math->Softmax(logprobs);
   logprobs->dw_->data_ = probs->data_;
-  logprobs->dw_->data_[idx_target] -= 1;
-  return -log(probs->data_[idx_target]);
+
+  float loss = 0;
+  int num_elements = probs->size_[0] * probs->size_[1] * probs->size_[2];
+  for (int batch = 0; batch < probs->size_[3]; ++batch)
+  {
+    int idx = batch * num_elements + idx_target[batch];
+    logprobs->dw_->data_[idx] -= 1;
+    loss -= log(probs->data_[idx]);
+  }
+
+  return loss;
 }

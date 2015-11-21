@@ -68,6 +68,12 @@ class Math
 
   virtual std::shared_ptr<Mat> Softmax(std::shared_ptr<Mat> &mat) = 0;
 
+  virtual int Fc(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> &filters,
+                 std::shared_ptr<Mat> &biases, std::shared_ptr<Mat> &out) = 0;
+  virtual int FcDeriv(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> &filters,
+                      std::shared_ptr<Mat> &biases,
+                      std::shared_ptr<Mat> &out) = 0;
+
   virtual int Conv(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &filters_w,
                    std::shared_ptr<Mat> &biases_w, std::shared_ptr<Mat> &out_w,
                    ConvParams &conv_params) = 0;

@@ -119,7 +119,7 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
     }
     else
     {
-      idx = MaxIdx(probs->data_);
+      idx = MaxIdx(probs);
     }
 
     // End token predicted, break out.
