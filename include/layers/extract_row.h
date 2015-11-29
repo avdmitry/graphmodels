@@ -17,14 +17,12 @@ class ExtractRowOp : public Object
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  void Forward(bool train)
   {
     for (int i = 0; i < mat_->size_[1]; i++)
     {
       out_->data_[i] = mat_->data_[mat_->size_[1] * idx_ + i];
     }
-
-    return out_;
   }
 
   void Backward()

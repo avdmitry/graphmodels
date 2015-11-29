@@ -39,7 +39,7 @@ class Object
   {
   }
 
-  virtual std::shared_ptr<Mat> Forward() = 0;
+  virtual void Forward(bool train) = 0;
   virtual void Backward() = 0;
   virtual void SetBatchSize(int new_size) = 0;
   virtual void ClearDw() = 0;
@@ -59,11 +59,11 @@ class Graph
     backward_.emplace_back(obj);
   }
 
-  void Forward(bool need_clear = true)
+  void Forward(bool train, bool need_clear)
   {
     for (int i = 0; i < forward_.size(); ++i)
     {
-      forward_[i]->Forward();
+      forward_[i]->Forward(train);
     }
     if (need_clear)
     {
@@ -122,9 +122,9 @@ class Model
   {
   }
 
-  void Forward()
+  void Forward(bool train)
   {
-    graph_->Forward(false);
+    graph_->Forward(train, false);
   }
 
   void Backward()

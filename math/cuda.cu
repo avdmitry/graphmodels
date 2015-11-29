@@ -3,15 +3,15 @@
 #include <stdio.h>
 #include <cublas_v2.h>
 
-#include "cpu.h"  // SgemmCpu, default implementation
+#include "cudnn.h"  // default implementation
 
 using std::string;
 using std::vector;
 using std::shared_ptr;
 
-static shared_ptr<MathCpu> math_cpu(new MathCpu);
+static shared_ptr<MathCudnn> math_cudnn(new MathCudnn);
 
-cublasHandle_t handle;
+static cublasHandle_t cublas_handle;
 
 int CopyToDevice(shared_ptr<Mat> &mat)
 {
@@ -147,7 +147,7 @@ __global__ void kTanhDeriv(float *mat1, float *mat2, float *out,
 
 void MathCuda::Init()
 {
-  cublasStatus_t status = cublasCreate(&handle);
+  cublasStatus_t status = cublasCreate(&cublas_handle);
   if (status != CUBLAS_STATUS_SUCCESS)
   {
     printf("cublas create failed\n");
@@ -155,11 +155,13 @@ void MathCuda::Init()
   }
 
   cudaSetDevice(gpu_id_);
+
+  math_cudnn->Init();
 }
 
 void MathCuda::Deinit()
 {
-  cublasDestroy(handle);
+  cublasDestroy(cublas_handle);
   cudaThreadExit();
 }
 
@@ -184,13 +186,10 @@ int MathCuda::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     return -1;
   }
 
-  float alpha = 1.0f;
-  float beta = 0.0f;
-
   // Process small matrices on cpu.
   if (m == 1 || n == 1 || k == 1)
   {
-    math_cpu->Mul(mat1, mat2, out);
+    math_cudnn->Mul(mat1, mat2, out);
   }
   else
   {
@@ -198,8 +197,10 @@ int MathCuda::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     CopyToDevice(mat2);
     CopyToDevice(out);
 
+    float alpha = 1.0f;
+    float beta = 0.0f;
     cublasStatus_t status =
-        cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha,
+        cublasSgemm(cublas_handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha,
                     mat2->data_device_, mat2->size_[1], mat1->data_device_,
                     mat1->size_[1], &beta, out->data_device_, out->size_[1]);
     if (status != CUBLAS_STATUS_SUCCESS)
@@ -220,13 +221,10 @@ int MathCuda::Add(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   int k = mat2->size_[0];
   int n = mat2->size_[1];
 
-  float alpha = 1.0f;
-  float beta = 1.0f;
-
   // Process small matrices on cpu.
   if (m == 1 || n == 1 || k == 1)
   {
-    math_cpu->Add(mat1, mat2, out);
+    math_cudnn->Add(mat1, mat2, out);
   }
   else
   {
@@ -234,8 +232,10 @@ int MathCuda::Add(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     CopyToDevice(mat2);
     CopyToDevice(out);
 
+    float alpha = 1.0f;
+    float beta = 1.0f;
     cublasStatus_t status = cublasSgeam(
-        handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &alpha, mat1->data_device_,
+        cublas_handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, &alpha, mat1->data_device_,
         mat1->size_[1], &beta, mat2->data_device_, mat2->size_[1],
         out->data_device_, out->size_[1]);
     if (status != CUBLAS_STATUS_SUCCESS)
@@ -256,12 +256,12 @@ int MathCuda::ElmtMul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   CopyToDevice(mat2);
   CopyToDevice(out);
 
-  int len = mat1->size_[0] * mat1->size_[1];
+  int len = mat1->size_[0] * mat1->size_[1] * mat1->size_[2] * mat1->size_[3];
 
   float alpha = 1.0f;
   float beta = 0.0f;
   cublasStatus_t status = cublasSgbmv(
-      handle, CUBLAS_OP_N, len, len, 0, 0, &alpha, mat1->data_device_, 1,
+      cublas_handle, CUBLAS_OP_N, len, len, 0, 0, &alpha, mat1->data_device_, 1,
       mat2->data_device_, 1, &beta, out->data_device_, 1);
   if (status != CUBLAS_STATUS_SUCCESS)
   {
@@ -276,27 +276,25 @@ int MathCuda::ElmtMul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
 int MathCuda::AddDeriv(shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
                        shared_ptr<Mat> &out)
 {
-  return math_cpu->AddDeriv(mat1d, mat2d, out);
+  return math_cudnn->AddDeriv(mat1d, mat2d, out);
 }
 
 int MathCuda::ElmtMulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
                            shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
                            shared_ptr<Mat> &out)
 {
-  return math_cpu->ElmtMulDeriv(mat1, mat2, mat1d, mat2d, out);
+  return math_cudnn->ElmtMulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
 int MathCuda::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
                        shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
                        shared_ptr<Mat> &out)
 {
-  return math_cpu->MulDeriv(mat1, mat2, mat1d, mat2d, out);
+  return math_cudnn->MulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
 int MathCuda::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  unsigned int len = in_w->size_[0] * in_w->size_[1];
-
   CopyToDevice(in_w);
   CopyToDevice(out_w);
 
@@ -304,6 +302,9 @@ int MathCuda::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   {
     return -1;
   }
+
+  unsigned int len =
+      in_w->size_[0] * in_w->size_[1] * in_w->size_[2] * in_w->size_[3];
 
   kRelu << <NUM_BLOCKS, NUM_THREADS>>>
       (in_w->data_device_, out_w->data_device_, len);
@@ -315,8 +316,6 @@ int MathCuda::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
 int MathCuda::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  unsigned int len = in_w->size_[0] * in_w->size_[1];
-
   CopyToDevice(in_w);
   CopyToDevice(out_w);
 
@@ -324,6 +323,9 @@ int MathCuda::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   {
     return -1;
   }
+
+  unsigned int len =
+      in_w->size_[0] * in_w->size_[1] * in_w->size_[2] * in_w->size_[3];
 
   kSigm << <NUM_BLOCKS, NUM_THREADS>>>
       (in_w->data_device_, out_w->data_device_, len);
@@ -335,8 +337,6 @@ int MathCuda::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 
 int MathCuda::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 {
-  unsigned int len = in_w->size_[0] * in_w->size_[1];
-
   CopyToDevice(in_w);
   CopyToDevice(out_w);
 
@@ -344,6 +344,9 @@ int MathCuda::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
   {
     return -1;
   }
+
+  unsigned int len =
+      in_w->size_[0] * in_w->size_[1] * in_w->size_[2] * in_w->size_[3];
 
   kTanh << <NUM_BLOCKS, NUM_THREADS>>>
       (in_w->data_device_, out_w->data_device_, len);
@@ -356,8 +359,6 @@ int MathCuda::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
 int MathCuda::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                         shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int len = out_dw->size_[0] * out_dw->size_[1];
-
   CopyToDevice(out_dw);
   CopyToDevice(out_w);
   CopyToDevice(in_dw);
@@ -369,6 +370,9 @@ int MathCuda::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   {
     return -1;
   }
+
+  int len =
+      out_dw->size_[0] * out_dw->size_[1] * out_dw->size_[2] * out_dw->size_[3];
 
   kReluDeriv << <NUM_BLOCKS, NUM_THREADS>>>
       (out_dw->data_device_, out_w->data_device_, in_dw->data_device_, len);
@@ -381,8 +385,6 @@ int MathCuda::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 int MathCuda::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                         shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int len = out_dw->size_[0] * out_dw->size_[1];
-
   CopyToDevice(out_dw);
   CopyToDevice(out_w);
   CopyToDevice(in_dw);
@@ -394,6 +396,9 @@ int MathCuda::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
   {
     return -1;
   }
+
+  int len =
+      out_dw->size_[0] * out_dw->size_[1] * out_dw->size_[2] * out_dw->size_[3];
 
   kSigmDeriv << <NUM_BLOCKS, NUM_THREADS>>>
       (out_dw->data_device_, out_w->data_device_, in_dw->data_device_, len);
@@ -406,8 +411,6 @@ int MathCuda::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 int MathCuda::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                         shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
 {
-  int len = out_dw->size_[0] * out_dw->size_[1];
-
   CopyToDevice(out_dw);
   CopyToDevice(out_w);
   CopyToDevice(in_dw);
@@ -420,6 +423,9 @@ int MathCuda::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
     return -1;
   }
 
+  int len =
+      out_dw->size_[0] * out_dw->size_[1] * out_dw->size_[2] * out_dw->size_[3];
+
   kTanhDeriv << <NUM_BLOCKS, NUM_THREADS>>>
       (out_dw->data_device_, out_w->data_device_, in_dw->data_device_, len);
 
@@ -430,26 +436,26 @@ int MathCuda::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 
 shared_ptr<Mat> MathCuda::Softmax(shared_ptr<Mat> &mat)
 {
-  return math_cpu->Softmax(mat);
+  return math_cudnn->Softmax(mat);
 }
 
 int MathCuda::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
                  shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
 {
-  return math_cpu->Fc(in, filters, biases, out);
+  return math_cudnn->Fc(in, filters, biases, out);
 }
 
 int MathCuda::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
                       shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
 {
-  return math_cpu->FcDeriv(in, filters, biases, out);
+  return math_cudnn->FcDeriv(in, filters, biases, out);
 }
 
 int MathCuda::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
                    shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
                    ConvParams &conv_params)
 {
-  return math_cpu->Conv(in_w, filters_w, biases_w, out_w, conv_params);
+  return math_cudnn->Conv(in_w, filters_w, biases_w, out_w, conv_params);
 }
 
 int MathCuda::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
@@ -457,19 +463,32 @@ int MathCuda::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                         shared_ptr<Mat> &biases_dw, shared_ptr<Mat> &out_w,
                         shared_ptr<Mat> &out_dw, ConvParams &conv_params)
 {
-  return math_cpu->ConvDeriv(in_w, in_dw, filters_w, filters_dw, biases_dw,
+  return math_cudnn->ConvDeriv(in_w, in_dw, filters_w, filters_dw, biases_dw,
                              out_w, out_dw, conv_params);
 }
 
 int MathCuda::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
                       ConvParams &conv_params)
 {
-  return math_cpu->MaxPool(in_w, out_w, conv_params);
+  return math_cudnn->MaxPool(in_w, out_w, conv_params);
 }
 
 int MathCuda::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
                            shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
                            ConvParams &conv_params)
 {
-  return math_cpu->MaxPoolDeriv(in_w, in_dw, out_w, out_dw, conv_params);
+  return math_cudnn->MaxPoolDeriv(in_w, in_dw, out_w, out_dw, conv_params);
+}
+
+int MathCuda::AvePool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                      ConvParams &conv_params)
+{
+  return math_cudnn->AvePool(in_w, out_w, conv_params);
+}
+
+int MathCuda::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                           shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
+                           ConvParams &conv_params)
+{
+  return math_cudnn->AvePoolDeriv(in_w, in_dw, out_w, out_dw, conv_params);
 }

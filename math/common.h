@@ -92,6 +92,13 @@ class Math
                            std::shared_ptr<Mat> &out_w,
                            std::shared_ptr<Mat> &out_dw,
                            ConvParams &conv_params) = 0;
+  virtual int AvePool(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w,
+                      ConvParams &conv_params) = 0;
+  virtual int AvePoolDeriv(std::shared_ptr<Mat> &in_w,
+                           std::shared_ptr<Mat> &in_dw,
+                           std::shared_ptr<Mat> &out_w,
+                           std::shared_ptr<Mat> &out_dw,
+                           ConvParams &conv_params) = 0;
 };
 
 #include "cpu.h"

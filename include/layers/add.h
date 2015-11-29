@@ -18,11 +18,9 @@ class AddOp : public Object
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  void Forward(bool train)
   {
     math->Add(mat1_, mat2_, out_);
-
-    return out_;
   }
 
   void Backward()

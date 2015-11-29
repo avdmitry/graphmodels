@@ -60,15 +60,11 @@ float CalcCost(shared_ptr<Model> &model, string &sent, shared_ptr<Data> &data)
 
     model->Create(idx_source);
 
-    model->graph_->Forward();
-    shared_ptr<Mat> logprobs = model->output_;
+    model->graph_->Forward(true, true);
 
-    shared_ptr<Mat> probs = math->Softmax(logprobs);
-    cost += -log(probs->data_[idx_target]);
-
-    // Write gradients into log probabilities.
-    logprobs->dw_->data_ = probs->data_;
-    logprobs->dw_->data_[idx_target] -= 1;
+    vector<int> targets;
+    targets.emplace_back(idx_target);
+    cost += SoftmaxLoss(model, targets);
   }
 
   return cost / sent.length();
@@ -96,7 +92,7 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
 
     model->Create(idx);
 
-    model->graph_->Forward();
+    model->graph_->Forward(false, true);
     shared_ptr<Mat> logprobs = model->output_;
 
     // Sample predicted letter.

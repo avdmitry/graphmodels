@@ -55,7 +55,7 @@ int MaxIdx(const shared_ptr<Mat> &mat)
 // Sample argmax from w, assuming w are probabilities that sum to one.
 int SampleIdx(vector<float> &w)
 {
-  float r = Randf(0, 1);
+  float r = Random01();
   float x = 0.0;
   for (int i = 0; i < w.size(); ++i)
   {

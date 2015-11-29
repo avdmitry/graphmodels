@@ -646,3 +646,157 @@ int MathCpu::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 
   return 0;
 }
+
+// TODO, max pool for a while
+int MathCpu::AvePool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                     ConvParams &conv_params)
+{
+  int padding_x = conv_params.padding_x;
+  int padding_y = conv_params.padding_y;
+  int stride_x = conv_params.stride_x;
+  int stride_y = conv_params.stride_y;
+  int filter_width = conv_params.filter_width;
+  int filter_height = conv_params.filter_height;
+  int num_filters = in_w->size_[2];
+  int in_width = in_w->size_[0];
+  int in_height = in_w->size_[1];
+  int batch_size = in_w->size_[3];
+  float *in_w_data = &in_w->data_[0];
+  float *out_w_data = &out_w->data_[0];
+
+  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
+  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
+
+  for (int batch = 0; batch < batch_size; ++batch)
+  {
+    int in_offset = in_width * in_height * num_filters * batch;
+    int out_offset = out_width * out_height * num_filters * batch;
+
+    for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+    {
+      int filter_start_x = -padding_x;
+      for (int out_x = 0; out_x < out_width;
+           filter_start_x += stride_x, ++out_x)
+      {
+        int filter_start_y = -padding_y;
+        for (int out_y = 0; out_y < out_height;
+             filter_start_y += stride_y, ++out_y)
+        {
+          float res = -FLT_MAX;
+          for (int filter_x = 0; filter_x < filter_width; ++filter_x)
+          {
+            int in_x = filter_start_x + filter_x;
+            if (in_x < 0 || in_x >= in_width)
+            {
+              continue;
+            }
+
+            for (int filter_y = 0; filter_y < filter_height; ++filter_y)
+            {
+              int in_y = filter_start_y + filter_y;
+              if (in_y < 0 || in_y >= in_height)
+              {
+                continue;
+              }
+
+              int in_idx = in_offset +
+                           (filter_channel * in_height + in_y) * in_width +
+                           in_x;
+              float curr = in_w_data[in_idx];
+              if (curr > res)
+              {
+                res = curr;
+              }
+            }
+          }
+
+          int out_idx = out_offset +
+                        (filter_channel * out_height + out_y) * out_width +
+                        out_x;
+          out_w_data[out_idx] = res;
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
+// TODO, max pool for a while
+int MathCpu::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                          shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
+                          ConvParams &conv_params)
+{
+  int padding_x = conv_params.padding_x;
+  int padding_y = conv_params.padding_y;
+  int stride_x = conv_params.stride_x;
+  int stride_y = conv_params.stride_y;
+  int filter_width = conv_params.filter_width;
+  int filter_height = conv_params.filter_height;
+  int num_filters = in_w->size_[2];
+  int in_width = in_w->size_[0];
+  int in_height = in_w->size_[1];
+  int batch_size = in_w->size_[3];
+  float *in_w_data = &in_w->data_[0];
+  float *in_dw_data = &in_dw->data_[0];
+  float *out_dw_data = &out_dw->data_[0];
+
+  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
+  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
+
+  for (int batch = 0; batch < batch_size; ++batch)
+  {
+    int in_offset = in_width * in_height * num_filters * batch;
+    int out_offset = out_width * out_height * num_filters * batch;
+
+    for (int filter_channel = 0; filter_channel < num_filters; ++filter_channel)
+    {
+      int filter_start_x = -padding_x;
+      for (int out_x = 0; out_x < out_width;
+           filter_start_x += stride_x, ++out_x)
+      {
+        int filter_start_y = -padding_y;
+        for (int out_y = 0; out_y < out_height;
+             filter_start_y += stride_y, ++out_y)
+        {
+          float res = -FLT_MAX;
+          int res_idx = 0;
+          for (int filter_x = 0; filter_x < filter_width; ++filter_x)
+          {
+            int in_x = filter_start_x + filter_x;
+            if (in_x < 0 || in_x >= in_width)
+            {
+              continue;
+            }
+
+            for (int filter_y = 0; filter_y < filter_height; ++filter_y)
+            {
+              int in_y = filter_start_y + filter_y;
+              if (in_y < 0 || in_y >= in_height)
+              {
+                continue;
+              }
+
+              int in_idx = in_offset +
+                           (filter_channel * in_height + in_y) * in_width +
+                           in_x;
+              float curr = in_w_data[in_idx];
+              if (curr > res)
+              {
+                res = curr;
+                res_idx = in_idx;
+              }
+            }
+          }
+
+          int out_idx = out_offset +
+                        (filter_channel * out_height + out_y) * out_width +
+                        out_x;
+          in_dw_data[res_idx] += out_dw_data[out_idx];
+        }
+      }
+    }
+  }
+
+  return 0;
+}

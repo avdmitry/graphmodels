@@ -13,11 +13,9 @@ class ReluOp : public Object
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  void Forward(bool train)
   {
     math->Relu(in_, out_);
-
-    return out_;
   }
 
   void Backward()

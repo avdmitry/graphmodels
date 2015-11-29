@@ -199,3 +199,16 @@ int MathBlas::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
 {
   return math_cpu->MaxPoolDeriv(in_w, in_dw, out_w, out_dw, conv_params);
 }
+
+int MathBlas::AvePool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                      ConvParams &conv_params)
+{
+  return math_cpu->AvePool(in_w, out_w, conv_params);
+}
+
+int MathBlas::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
+                           shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
+                           ConvParams &conv_params)
+{
+  return math_cpu->AvePoolDeriv(in_w, in_dw, out_w, out_dw, conv_params);
+}

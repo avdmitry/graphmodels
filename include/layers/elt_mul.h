@@ -16,11 +16,9 @@ class EltMulOp : public Object
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  void Forward(bool train)
   {
     math->ElmtMul(mat1_, mat2_, out_);
-
-    return out_;
   }
 
   void Backward()

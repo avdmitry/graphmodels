@@ -76,6 +76,13 @@ class MathBlas : public Math
                            std::shared_ptr<Mat> &out_w,
                            std::shared_ptr<Mat> &out_dw,
                            ConvParams &conv_params);
+  virtual int AvePool(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w,
+                      ConvParams &conv_params);
+  virtual int AvePoolDeriv(std::shared_ptr<Mat> &in_w,
+                           std::shared_ptr<Mat> &in_dw,
+                           std::shared_ptr<Mat> &out_w,
+                           std::shared_ptr<Mat> &out_dw,
+                           ConvParams &conv_params);
 };
 
 #endif

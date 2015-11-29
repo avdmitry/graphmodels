@@ -22,11 +22,9 @@ class FCLayer : public Object
     *out = out_;
   }
 
-  std::shared_ptr<Mat> Forward()
+  void Forward(bool train)
   {
     math->Fc(in_, filters_, biases_, out_);
-
-    return out_;
   }
 
   void Backward()
