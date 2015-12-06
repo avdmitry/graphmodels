@@ -33,12 +33,12 @@ class Net : public Model
     graph_ = std::shared_ptr<Graph>(new Graph);
 
     std::shared_ptr<Mat> mul1, a1mat, h1mat, mul2;
-    graph_->Process(std::shared_ptr<Object>(new MulOp(w1_, input_, &mul1)));
-    graph_->Process(std::shared_ptr<Object>(new AddOp(mul1, b1_, &a1mat)));
-    graph_->Process(std::shared_ptr<Object>(new TanhOp(a1mat, &h1mat)));
+    graph_->Process(std::shared_ptr<Operation>(new MulOp(w1_, input_, &mul1)));
+    graph_->Process(std::shared_ptr<Operation>(new AddOp(mul1, b1_, &a1mat)));
+    graph_->Process(std::shared_ptr<Operation>(new TanhOp(a1mat, &h1mat)));
 
-    graph_->Process(std::shared_ptr<Object>(new MulOp(w2_, h1mat, &mul2)));
-    graph_->Process(std::shared_ptr<Object>(new AddOp(mul2, b2_, &output_)));
+    graph_->Process(std::shared_ptr<Operation>(new MulOp(w2_, h1mat, &mul2)));
+    graph_->Process(std::shared_ptr<Operation>(new AddOp(mul2, b2_, &output_)));
   }
 
   void ClearPrevState()

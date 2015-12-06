@@ -20,25 +20,28 @@ class FcNet : public Model
 
     graph_ = shared_ptr<Graph>(new Graph);
     input_ = shared_ptr<Mat>(new Mat(num_input, 1, 1, batch_size));
+    math->MemoryAlloc(input_);
+    math->MemoryAlloc(input_->dw_);
 
     shared_ptr<Mat> fc1, rel1;
     graph_->Process(
-        shared_ptr<Object>(new FCLayer(input_, &fc1, num_hidden_units)));
-    graph_->Process(shared_ptr<Object>(new ReluOp(fc1, &rel1)));
+        shared_ptr<Operation>(new FCLayer(input_, &fc1, num_hidden_units)));
+    graph_->Process(shared_ptr<Operation>(new ReluOp(fc1, &rel1)));
 
     shared_ptr<Mat> fc2, rel2;
     graph_->Process(
-        shared_ptr<Object>(new FCLayer(rel1, &fc2, num_hidden_units)));
-    graph_->Process(shared_ptr<Object>(new ReluOp(fc2, &rel2)));
+        shared_ptr<Operation>(new FCLayer(rel1, &fc2, num_hidden_units)));
+    graph_->Process(shared_ptr<Operation>(new ReluOp(fc2, &rel2)));
 
     graph_->Process(
-        shared_ptr<Object>(new FCLayer(rel2, &output_, num_output)));
+        shared_ptr<Operation>(new FCLayer(rel2, &output_, num_output)));
 
     graph_->GetParams(params_);
     for (size_t i = 0; i < params_.size(); ++i)
     {
       shared_ptr<Mat> &mat = params_[i];
-      params_prev_.emplace_back(new Mat(mat->size_));
+      params_prev_.emplace_back(new Mat(mat->size_, false));
+      math->CopyToDevice(params_prev_.back());
     }
   }
 
@@ -65,7 +68,7 @@ int main(int argc, char *argv[])
   srand(0);
 
   math = shared_ptr<Math>(new MathCpu);
-  // math = shared_ptr<Math>(new MathCudnn);
+  // math = shared_ptr<Math>(new MathCudnn(0));
   math->Init();
 
   datasets::Mnist mnist(data_path);
@@ -87,14 +90,14 @@ int main(int argc, char *argv[])
   clock_t begin_time = clock();
   for (int step = 0; step < steps_num; ++step)
   {
-    vector<int> idx_target;
+    shared_ptr<Mat> labels(new Mat(1, 1, 1, batch_size, false));
     for (int batch = 0; batch < batch_size; ++batch)
     {
       for (int idx = 0; idx < 784; ++idx)
       {
         net->input_->data_[idx + batch * 784] = train[train_idx]->image[idx];
       }
-      idx_target.emplace_back(train[train_idx]->label);
+      labels->data_[batch] = train[train_idx]->label;
 
       train_idx++;
       if (train_idx == train.size())
@@ -102,11 +105,15 @@ int main(int argc, char *argv[])
         train_idx = 0;
       }
     }
+    math->CopyToDevice(net->input_);
+    math->CopyToDevice(labels);
     net->Forward(true);
+
     // printf("output: %u %u %u %u\n", logprobs->size_[0], logprobs->size_[1],
     //         logprobs->size_[2], logprobs->size_[3]);
 
-    cost += SoftmaxLoss(net, idx_target);
+    shared_ptr<Mat> out;
+    cost += math->Softmax(net->output_, out, labels);
 
     net->Backward();
 
@@ -151,7 +158,9 @@ int main(int argc, char *argv[])
         }
         int idx_gt = test[test_idx]->label;
 
+        math->CopyToDevice(net->input_);
         net->Forward(false);
+        math->CopyToHost(net->output_);
 
         int idx_pred = MaxIdx(net->output_);
         if (idx_gt == idx_pred)

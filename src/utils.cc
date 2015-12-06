@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <random>
+#include <sstream>
 
 using std::string;
 using std::vector;
@@ -86,20 +87,14 @@ void Trim(string *str)
   }
 }
 
-float SoftmaxLoss(shared_ptr<Model> &net, vector<int> &idx_target)
+shared_ptr<vector<string>> Split(const string &s, char delim)
 {
-  shared_ptr<Mat> &logprobs = net->output_;
-  shared_ptr<Mat> probs = math->Softmax(logprobs);
-  logprobs->dw_->data_ = probs->data_;
-
-  float loss = 0;
-  int num_elements = probs->size_[0] * probs->size_[1] * probs->size_[2];
-  for (int batch = 0; batch < probs->size_[3]; ++batch)
+  shared_ptr<vector<string>> elems(new vector<string>);
+  std::stringstream ss(s);
+  string item;
+  while (getline(ss, item, delim))
   {
-    int idx = batch * num_elements + idx_target[batch];
-    logprobs->dw_->data_[idx] -= 1;
-    loss -= log(probs->data_[idx]);
+    elems->push_back(item);
   }
-
-  return loss;
+  return elems;
 }

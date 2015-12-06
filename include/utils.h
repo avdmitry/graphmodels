@@ -29,13 +29,13 @@ class Data
   std::map<int, char> index_to_letter_;
 };
 
-class Object
+class Operation
 {
  public:
-  Object()
+  Operation()
   {
   }
-  virtual ~Object()
+  virtual ~Operation()
   {
   }
 
@@ -53,7 +53,7 @@ class Graph
   {
   }
 
-  void Process(std::shared_ptr<Object> obj)
+  void Process(std::shared_ptr<Operation> obj)
   {
     forward_.emplace_back(obj);
     backward_.emplace_back(obj);
@@ -71,7 +71,7 @@ class Graph
     }
   }
 
-  void Backward(bool need_clear = true)
+  void Backward(bool need_clear)
   {
     for (int i = backward_.size() - 1; i >= 0; --i)
     {
@@ -108,8 +108,8 @@ class Graph
   }
 
  private:
-  std::vector<std::shared_ptr<Object>> backward_;
-  std::vector<std::shared_ptr<Object>> forward_;
+  std::vector<std::shared_ptr<Operation>> backward_;
+  std::vector<std::shared_ptr<Operation>> forward_;
 };
 
 class Model
@@ -175,6 +175,7 @@ int SampleIdx(std::vector<float> &w);
 
 void Trim(std::string *str);
 
-float SoftmaxLoss(std::shared_ptr<Model> &net, std::vector<int> &idx_target);
+std::shared_ptr<std::vector<std::string>> Split(const std::string &s,
+                                                char delim);
 
 #endif

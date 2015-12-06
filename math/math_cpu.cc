@@ -1,4 +1,4 @@
-#include "cpu.h"
+#include "math_cpu.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -68,28 +68,26 @@ void MathCpu::Deinit()
 {
 }
 
-int MathCpu::Add(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
-                 shared_ptr<Mat> &out)
+void MathCpu::Add(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
+                  shared_ptr<Mat> &out)
 {
   for (int i = 0; i < mat1->data_.size(); i++)
   {
     out->data_[i] = mat1->data_[i] + mat2->data_[i];
   }
-  return 0;
 }
 
-int MathCpu::ElmtMul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
-                     shared_ptr<Mat> &out)
+void MathCpu::ElmtMul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
+                      shared_ptr<Mat> &out)
 {
   for (int i = 0; i < mat1->data_.size(); i++)
   {
     out->data_[i] = mat1->data_[i] * mat2->data_[i];
   }
-  return 0;
 }
 
-int MathCpu::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
-                 shared_ptr<Mat> &out)
+void MathCpu::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
+                  shared_ptr<Mat> &out)
 {
   int m = mat1->size_[0];
   int k2 = mat1->size_[1];
@@ -100,7 +98,7 @@ int MathCpu::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   if (m != m2 || n != n2 || k != k2)
   {
     printf("%d %d %d %d %d %d\n", m, k2, k, n, m2, n2);
-    return -1;
+    return;
   }
 
   float alpha = 1.0f;
@@ -108,12 +106,10 @@ int MathCpu::Mul(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   SgemmCpu(true, false, false, m, n, k, alpha, &mat1->data_[0], mat1->size_[1],
            &mat2->data_[0], mat2->size_[1], beta, &out->data_[0],
            out->size_[1]);
-
-  return 0;
 }
 
-int MathCpu::AddDeriv(shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
-                      shared_ptr<Mat> &out)
+void MathCpu::AddDeriv(shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
+                       shared_ptr<Mat> &out)
 {
   for (int i = 0; i < mat1d->data_.size(); i++)
   {
@@ -121,13 +117,11 @@ int MathCpu::AddDeriv(shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
     mat1d->data_[i] += dw;
     mat2d->data_[i] += dw;
   }
-
-  return 0;
 }
 
-int MathCpu::ElmtMulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
-                          shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
-                          shared_ptr<Mat> &out)
+void MathCpu::ElmtMulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
+                           shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
+                           shared_ptr<Mat> &out)
 {
   for (int i = 0; i < mat1->data_.size(); i++)
   {
@@ -135,13 +129,11 @@ int MathCpu::ElmtMulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
     mat1d->data_[i] += mat2->data_[i] * dw;
     mat2d->data_[i] += mat1->data_[i] * dw;
   }
-
-  return 0;
 }
 
-int MathCpu::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
-                      shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
-                      shared_ptr<Mat> &out)
+void MathCpu::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
+                       shared_ptr<Mat> &mat1d, shared_ptr<Mat> &mat2d,
+                       shared_ptr<Mat> &out)
 {
   int mat1_size1 = mat1->size_[1];
   int mat2_size1 = mat2->size_[1];
@@ -175,40 +167,40 @@ int MathCpu::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   beta = 0.0f;
   SgemmCpu(false, false, true, m, n, k, alpha, &out->data_[0], m,
            &mat1->data_[0], n, beta, &mat2d->data_[0], m);*/
-
-  return 0;
 }
 
-int MathCpu::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
+void MathCpu::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                   Params &params)
 {
   for (int i = 0; i < in_w->data_.size(); i++)
   {
     out_w->data_[i] = max(0.0f, in_w->data_[i]);
   }
-  return 0;
 }
 
-int MathCpu::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
+void MathCpu::Sigm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                   Params &params)
 {
   for (int i = 0; i < in_w->data_.size(); i++)
   {
     out_w->data_[i] = 1.0 / (1 + exp(-in_w->data_[i]));
   }
-  return 0;
 }
 
-int MathCpu::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w)
+void MathCpu::Tanh(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                   Params &params)
 {
   for (int i = 0; i < in_w->data_.size(); i++)
   {
     out_w->data_[i] = tanh(in_w->data_[i]);
   }
-  return 0;
 }
 
-int MathCpu::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
-                       shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
+void MathCpu::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                        Params &params)
 {
+  shared_ptr<Mat> &in_dw = in_w->dw_;
+  shared_ptr<Mat> &out_dw = out_w->dw_;
   for (size_t i = 0; i < out_dw->data_.size(); i++)
   {
     if (out_w->data_[i] > 0)
@@ -216,34 +208,36 @@ int MathCpu::ReluDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
       in_dw->data_[i] += out_dw->data_[i];
     }
   }
-  return 0;
 }
 
-int MathCpu::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
-                       shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
+void MathCpu::SigmDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                        Params &params)
 {
+  shared_ptr<Mat> &in_dw = in_w->dw_;
+  shared_ptr<Mat> &out_dw = out_w->dw_;
   for (size_t i = 0; i < out_dw->data_.size(); i++)
   {
     float mwi = out_w->data_[i];
     in_dw->data_[i] += mwi * (1.0 - mwi) * out_dw->data_[i];
   }
-  return 0;
 }
 
-int MathCpu::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
-                       shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw)
+void MathCpu::TanhDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                        Params &params)
 {
+  shared_ptr<Mat> &in_dw = in_w->dw_;
+  shared_ptr<Mat> &out_dw = out_w->dw_;
   for (size_t i = 0; i < out_dw->data_.size(); i++)
   {
     float mwi = out_w->data_[i];
     in_dw->data_[i] += (1.0 - mwi * mwi) * out_dw->data_[i];
   }
-  return 0;
 }
 
-shared_ptr<Mat> MathCpu::Softmax(shared_ptr<Mat> &mat)
+float MathCpu::Softmax(shared_ptr<Mat> &mat, shared_ptr<Mat> &out,
+                       shared_ptr<Mat> &labels)
 {
-  shared_ptr<Mat> out(new Mat(mat->size_));
+  out = shared_ptr<Mat>(new Mat(mat->size_));
   int num_elements = mat->size_[0] * mat->size_[1] * mat->size_[2];
   for (int batch = 0; batch < mat->size_[3]; ++batch)
   {
@@ -269,11 +263,20 @@ shared_ptr<Mat> MathCpu::Softmax(shared_ptr<Mat> &mat)
     }
   }
 
-  return out;
+  mat->dw_->data_ = out->data_;
+  float loss = 0;
+  for (int batch = 0; batch < out->size_[3]; ++batch)
+  {
+    int idx = batch * num_elements + labels->data_[batch];
+    mat->dw_->data_[idx] -= 1;
+    loss -= log(out->data_[idx]);
+  }
+
+  return loss;
 }
 
-int MathCpu::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
-                shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+void MathCpu::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                 shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
 {
   int num_out = out->size_[2];
   int num_in = filters->size_[0];
@@ -288,19 +291,17 @@ int MathCpu::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
       float result = biases->data_[i];
       for (int j = 0; j < num_in; ++j)
       {
-        //int filters_idx = num_out * j + i;
+        // int filters_idx = num_out * j + i;
         int filters_idx = num_in * i + j;
         result += in->data_[in_offset + j] * filters->data_[filters_idx];
       }
       out->data_[out_offset + i] = result;
     }
   }
-
-  return 0;
 }
 
-int MathCpu::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
-                     shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
+void MathCpu::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
+                      shared_ptr<Mat> &biases, shared_ptr<Mat> &out)
 {
   int num_out = out->size_[2];
   int num_in = filters->size_[0];
@@ -315,7 +316,7 @@ int MathCpu::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
       float dw = out->dw_->data_[out_offset + i];
       for (int j = 0; j < num_in; ++j)
       {
-        //int filters_idx = num_out * j + i;
+        // int filters_idx = num_out * j + i;
         int filters_idx = num_in * i + j;
         in->dw_->data_[in_offset + j] += dw * filters->data_[filters_idx];
         filters->dw_->data_[filters_idx] += dw * in->data_[in_offset + j];
@@ -323,32 +324,30 @@ int MathCpu::FcDeriv(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
       biases->dw_->data_[i] += dw;
     }
   }
-
-  return 0;
 }
 
-int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
-                  shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
-                  ConvParams &conv_params)
+void MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
+                   shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
+                   Params &params)
 {
-  int padding_x = conv_params.padding_x;
-  int padding_y = conv_params.padding_y;
-  int stride_x = conv_params.stride_x;
-  int stride_y = conv_params.stride_y;
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
-  int num_input = conv_params.num_input_channels;
-  int num_filters = conv_params.num_output_channels;
+  int padding_x = params.padding_x;
+  int padding_y = params.padding_y;
+  int stride_x = params.stride_x;
+  int stride_y = params.stride_y;
+  int filter_width = params.filter_width;
+  int filter_height = params.filter_height;
+  int num_input = params.num_input;
+  int num_filters = params.num_output;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int batch_size = in_w->size_[3];
+  int out_width = params.out_width;
+  int out_height = params.out_height;
+
   float *in_w_data = &in_w->data_[0];
   float *filters_w_data = &filters_w->data_[0];
   float *biases_w_data = &biases_w->data_[0];
   float *out_w_data = &out_w->data_[0];
-
-  int out_width = (in_width + 2 * padding_x - filter_width) / stride_x + 1;
-  int out_height = (in_height + 2 * padding_y - filter_height) / stride_y + 1;
 
   for (int batch = 0; batch < batch_size; ++batch)
   {
@@ -404,35 +403,32 @@ int MathCpu::Conv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
       }
     }
   }
-
-  return 0;
 }
 
-int MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
-                       shared_ptr<Mat> &filters_w, shared_ptr<Mat> &filters_dw,
-                       shared_ptr<Mat> &biases_dw, shared_ptr<Mat> &out_w,
-                       shared_ptr<Mat> &out_dw, ConvParams &conv_params)
+void MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &filters_w,
+                        shared_ptr<Mat> &biases_w, shared_ptr<Mat> &out_w,
+                        Params &params)
 {
-  int padding_x = conv_params.padding_x;
-  int padding_y = conv_params.padding_y;
-  int stride_x = conv_params.stride_x;
-  int stride_y = conv_params.stride_y;
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
-  int num_input = conv_params.num_input_channels;
-  int num_filters = conv_params.num_output_channels;
-  int in_width = in_dw->size_[0];
-  int in_height = in_dw->size_[1];
+  int padding_x = params.padding_x;
+  int padding_y = params.padding_y;
+  int stride_x = params.stride_x;
+  int stride_y = params.stride_y;
+  int filter_width = params.filter_width;
+  int filter_height = params.filter_height;
+  int num_input = params.num_input;
+  int num_filters = params.num_output;
+  int in_width = in_w->size_[0];
+  int in_height = in_w->size_[1];
   int batch_size = in_w->size_[3];
-  float *in_w_data = &in_w->data_[0];
-  float *in_dw_data = &in_dw->data_[0];
-  float *filters_w_data = &filters_w->data_[0];
-  float *filters_dw_data = &filters_dw->data_[0];
-  float *biases_dw_data = &biases_dw->data_[0];
-  float *out_dw_data = &out_dw->data_[0];
+  int out_width = params.out_width;
+  int out_height = params.out_height;
 
-  int out_width = (in_width + 2 * padding_x - filter_width) / stride_x + 1;
-  int out_height = (in_height + 2 * padding_y - filter_height) / stride_y + 1;
+  float *in_w_data = &in_w->data_[0];
+  float *in_dw_data = &in_w->dw_->data_[0];
+  float *filters_w_data = &filters_w->data_[0];
+  float *filters_dw_data = &filters_w->dw_->data_[0];
+  float *biases_dw_data = &biases_w->dw_->data_[0];
+  float *out_dw_data = &out_w->dw_->data_[0];
 
   for (int batch = 0; batch < batch_size; ++batch)
   {
@@ -491,28 +487,26 @@ int MathCpu::ConvDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
       }
     }
   }
-
-  return 0;
 }
 
-int MathCpu::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
-                     ConvParams &conv_params)
+void MathCpu::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                      Params &params)
 {
-  int padding_x = conv_params.padding_x;
-  int padding_y = conv_params.padding_y;
-  int stride_x = conv_params.stride_x;
-  int stride_y = conv_params.stride_y;
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
-  int num_filters = in_w->size_[2];
+  int padding_x = params.padding_x;
+  int padding_y = params.padding_y;
+  int stride_x = params.stride_x;
+  int stride_y = params.stride_y;
+  int filter_width = params.filter_width;
+  int filter_height = params.filter_height;
+  int out_width = params.out_width;
+  int out_height = params.out_height;
+  int num_filters = params.num_output;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int batch_size = in_w->size_[3];
+
   float *in_w_data = &in_w->data_[0];
   float *out_w_data = &out_w->data_[0];
-
-  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
-  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
 
   for (int batch = 0; batch < batch_size; ++batch)
   {
@@ -565,30 +559,27 @@ int MathCpu::MaxPool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
       }
     }
   }
-
-  return 0;
 }
 
-int MathCpu::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
-                          shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
-                          ConvParams &conv_params)
+void MathCpu::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                           Params &params)
 {
-  int padding_x = conv_params.padding_x;
-  int padding_y = conv_params.padding_y;
-  int stride_x = conv_params.stride_x;
-  int stride_y = conv_params.stride_y;
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
-  int num_filters = in_w->size_[2];
+  int padding_x = params.padding_x;
+  int padding_y = params.padding_y;
+  int stride_x = params.stride_x;
+  int stride_y = params.stride_y;
+  int filter_width = params.filter_width;
+  int filter_height = params.filter_height;
+  int out_width = params.out_width;
+  int out_height = params.out_height;
+  int num_filters = params.num_output;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int batch_size = in_w->size_[3];
-  float *in_w_data = &in_w->data_[0];
-  float *in_dw_data = &in_dw->data_[0];
-  float *out_dw_data = &out_dw->data_[0];
 
-  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
-  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
+  float *in_w_data = &in_w->data_[0];
+  float *in_dw_data = &in_w->dw_->data_[0];
+  float *out_dw_data = &out_w->dw_->data_[0];
 
   for (int batch = 0; batch < batch_size; ++batch)
   {
@@ -643,29 +634,27 @@ int MathCpu::MaxPoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
       }
     }
   }
-
-  return 0;
 }
 
 // TODO, max pool for a while
-int MathCpu::AvePool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
-                     ConvParams &conv_params)
+void MathCpu::AvePool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                      Params &params)
 {
-  int padding_x = conv_params.padding_x;
-  int padding_y = conv_params.padding_y;
-  int stride_x = conv_params.stride_x;
-  int stride_y = conv_params.stride_y;
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
-  int num_filters = in_w->size_[2];
+  int padding_x = params.padding_x;
+  int padding_y = params.padding_y;
+  int stride_x = params.stride_x;
+  int stride_y = params.stride_y;
+  int filter_width = params.filter_width;
+  int filter_height = params.filter_height;
+  int out_width = params.out_width;
+  int out_height = params.out_height;
+  int num_filters = params.num_output;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int batch_size = in_w->size_[3];
+
   float *in_w_data = &in_w->data_[0];
   float *out_w_data = &out_w->data_[0];
-
-  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
-  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
 
   for (int batch = 0; batch < batch_size; ++batch)
   {
@@ -718,31 +707,28 @@ int MathCpu::AvePool(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
       }
     }
   }
-
-  return 0;
 }
 
 // TODO, max pool for a while
-int MathCpu::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
-                          shared_ptr<Mat> &out_w, shared_ptr<Mat> &out_dw,
-                          ConvParams &conv_params)
+void MathCpu::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
+                           Params &params)
 {
-  int padding_x = conv_params.padding_x;
-  int padding_y = conv_params.padding_y;
-  int stride_x = conv_params.stride_x;
-  int stride_y = conv_params.stride_y;
-  int filter_width = conv_params.filter_width;
-  int filter_height = conv_params.filter_height;
-  int num_filters = in_w->size_[2];
+  int padding_x = params.padding_x;
+  int padding_y = params.padding_y;
+  int stride_x = params.stride_x;
+  int stride_y = params.stride_y;
+  int filter_width = params.filter_width;
+  int filter_height = params.filter_height;
+  int out_width = params.out_width;
+  int out_height = params.out_height;
+  int num_filters = params.num_output;
   int in_width = in_w->size_[0];
   int in_height = in_w->size_[1];
   int batch_size = in_w->size_[3];
-  float *in_w_data = &in_w->data_[0];
-  float *in_dw_data = &in_dw->data_[0];
-  float *out_dw_data = &out_dw->data_[0];
 
-  int out_width = (in_width + padding_x * 2 - filter_width) / stride_x + 1;
-  int out_height = (in_height + padding_y * 2 - filter_height) / stride_y + 1;
+  float *in_w_data = &in_w->data_[0];
+  float *in_dw_data = &in_w->dw_->data_[0];
+  float *out_dw_data = &out_w->dw_->data_[0];
 
   for (int batch = 0; batch < batch_size; ++batch)
   {
@@ -797,6 +783,49 @@ int MathCpu::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &in_dw,
       }
     }
   }
+}
 
-  return 0;
+void MathCpu::SGD(shared_ptr<Mat> &mat, float learning_rate, int batch_size)
+{
+  for (size_t i = 0; i < mat->data_.size(); ++i)
+  {
+    if (mat->dw_->data_[i] != 0)
+    {
+      mat->data_[i] += -learning_rate * (mat->dw_->data_[i] / batch_size);
+    }
+  }
+}
+
+void MathCpu::Rmsprop(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,
+                      float learning_rate, int batch_size)
+{
+  float decay_rate = 0.999;
+  float smooth_eps = 1e-8;
+  float regc = 0.000001;  // L2 regularization strength
+  float clipval = 5.0;    // clip gradients at this value
+
+  for (size_t i = 0; i < mat->data_.size(); ++i)
+  {
+    // Rmsprop adaptive learning rate.
+    float mdwi = mat->dw_->data_[i] / batch_size;
+    mat_prev->data_[i] =
+        decay_rate * mat_prev->data_[i] + (1.0 - decay_rate) * mdwi * mdwi;
+
+    // Gradient clip.
+    if (mdwi > clipval)
+    {
+      mdwi = clipval;
+    }
+    if (mdwi < -clipval)
+    {
+      mdwi = -clipval;
+    }
+
+    // Update (and regularize).
+    mat->data_[i] +=
+        -learning_rate * mdwi / sqrt(mat_prev->data_[i] + smooth_eps) -
+        regc * mat->data_[i];
+
+    mat->dw_->data_[i] = 0;
+  }
 }

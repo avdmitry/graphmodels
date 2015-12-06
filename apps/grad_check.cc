@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
   float cost = CalcCost(model, sent, data);
   (void)cost;
 
-  model->graph_->Backward();
+  model->graph_->Backward(true);
 
   float eps = 0.1;
 

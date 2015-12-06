@@ -24,28 +24,32 @@ class CnnNet : public Model
 
     graph_ = shared_ptr<Graph>(new Graph);
     input_ = shared_ptr<Mat>(new Mat(num_input_x, num_input_y, 1, batch_size));
+    math->MemoryAlloc(input_);
+    math->MemoryAlloc(input_->dw_);
 
     shared_ptr<Mat> conv1, rel1, mp1;
-    graph_->Process(shared_ptr<Object>(new ConvLayer(
+    graph_->Process(shared_ptr<Operation>(new ConvLayer(
         input_, &conv1, num_filters1, filter1_x, filter1_y, 1, 1, 1, 1)));
-    graph_->Process(shared_ptr<Object>(new ReluOp(conv1, &rel1)));
-    graph_->Process(
-        shared_ptr<Object>(new PoolLayer(rel1, &mp1, 3, 3, 1, 1, 2, 2, MAX)));
+    graph_->Process(shared_ptr<Operation>(new ReluOp(conv1, &rel1)));
+    graph_->Process(shared_ptr<Operation>(
+        new PoolLayer(rel1, &mp1, 3, 3, 1, 1, 2, 2, MAX)));
 
     shared_ptr<Mat> conv2, rel2, mp2;
-    graph_->Process(shared_ptr<Object>(new ConvLayer(
+    graph_->Process(shared_ptr<Operation>(new ConvLayer(
         mp1, &conv2, num_filters2, filter2_x, filter2_y, 1, 1, 1, 1)));
-    graph_->Process(shared_ptr<Object>(new ReluOp(conv2, &rel2)));
-    graph_->Process(
-        shared_ptr<Object>(new PoolLayer(rel2, &mp2, 3, 3, 1, 1, 2, 2, MAX)));
+    graph_->Process(shared_ptr<Operation>(new ReluOp(conv2, &rel2)));
+    graph_->Process(shared_ptr<Operation>(
+        new PoolLayer(rel2, &mp2, 3, 3, 1, 1, 2, 2, MAX)));
 
-    graph_->Process(shared_ptr<Object>(new FCLayer(mp2, &output_, num_output)));
+    graph_->Process(
+        shared_ptr<Operation>(new FCLayer(mp2, &output_, num_output)));
 
     graph_->GetParams(params_);
     for (size_t i = 0; i < params_.size(); ++i)
     {
       shared_ptr<Mat> &mat = params_[i];
-      params_prev_.emplace_back(new Mat(mat->size_));
+      params_prev_.emplace_back(new Mat(mat->size_, false));
+      math->CopyToDevice(params_prev_.back());
     }
   }
 
@@ -72,7 +76,7 @@ int main(int argc, char *argv[])
   srand(0);
 
   math = shared_ptr<Math>(new MathCpu);
-  // math = shared_ptr<Math>(new MathCudnn);
+  // math = shared_ptr<Math>(new MathCudnn(0));
   math->Init();
 
   datasets::Mnist mnist(data_path);
@@ -94,7 +98,7 @@ int main(int argc, char *argv[])
   clock_t begin_time = clock();
   for (int step = 0; step < steps_num; ++step)
   {
-    vector<int> idx_target;
+    shared_ptr<Mat> labels(new Mat(1, 1, 1, batch_size, false));
     for (int batch = 0; batch < batch_size; ++batch)
     {
       for (int x = 0; x < 28; ++x)
@@ -106,7 +110,7 @@ int main(int argc, char *argv[])
               train[train_idx]->image[idx];
         }
       }
-      idx_target.emplace_back(train[train_idx]->label);
+      labels->data_[batch] = train[train_idx]->label;
 
       train_idx++;
       if (train_idx == train.size())
@@ -114,15 +118,20 @@ int main(int argc, char *argv[])
         train_idx = 0;
       }
     }
+    math->CopyToDevice(net->input_);
+    math->CopyToDevice(labels);
     net->Forward(true);
+
     // printf("output: %u %u %u %u\n", logprobs->size_[0], logprobs->size_[1],
     //         logprobs->size_[2], logprobs->size_[3]);
 
-    cost += SoftmaxLoss(net, idx_target);
+    shared_ptr<Mat> out;
+    cost += math->Softmax(net->output_, out, labels);
 
     net->Backward();
 
     LearnRmsprop(net, learning_rate, batch_size);
+    // LearnSGD(net, learning_rate, batch_size);
 
     bool new_line = false;
     int output_each = 1000;
@@ -140,7 +149,7 @@ int main(int argc, char *argv[])
 
     if (num_examples % lr_drop_each == 0 && step != 0)
     {
-      learning_rate /= 3; // 2
+      learning_rate /= 3;  // 2
       printf("learning rate: %.6f\n", learning_rate);
     }
 
@@ -163,7 +172,9 @@ int main(int argc, char *argv[])
         }
         int idx_gt = test[test_idx]->label;
 
+        math->CopyToDevice(net->input_);
         net->Forward(false);
+        math->CopyToHost(net->output_);
 
         int idx_pred = MaxIdx(net->output_);
         if (idx_gt == idx_pred)

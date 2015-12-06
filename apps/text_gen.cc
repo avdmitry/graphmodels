@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     model->graph_ = shared_ptr<Graph>(new Graph);
     cost_epoch += CalcCost(model, sent, data);
 
-    model->graph_->Backward();
+    model->graph_->Backward(true);
 
     // learning rate, 0.01 for lstm, 0.001 for rnn
     LearnRmsprop(model, 0.001);

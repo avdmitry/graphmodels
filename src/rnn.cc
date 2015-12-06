@@ -55,7 +55,7 @@ void Rnn::Create(int idx)
   input_->data_[idx] = 1;
 
   shared_ptr<Mat> x;
-  graph_->Process(shared_ptr<Object>(new MulOp(wil_, input_, &x)));
+  graph_->Process(shared_ptr<Operation>(new MulOp(wil_, input_, &x)));
 
   vector<shared_ptr<Mat>> hidden;
   for (size_t d = 0; d < hidden_sizes_.size(); d++)
@@ -72,11 +72,11 @@ void Rnn::Create(int idx)
     shared_ptr<Mat> &hidden_prev = prev_hiddens_[d];
 
     shared_ptr<Mat> h0, h1, h01, bias, hidden_curr;
-    graph_->Process(shared_ptr<Object>(new MulOp(wxh_[d], input_vector, &h0)));
-    graph_->Process(shared_ptr<Object>(new MulOp(whh_[d], hidden_prev, &h1)));
-    graph_->Process(shared_ptr<Object>(new AddOp(h0, h1, &h01)));
-    graph_->Process(shared_ptr<Object>(new AddOp(h01, bhh_[d], &bias)));
-    graph_->Process(shared_ptr<Object>(new ReluOp(bias, &hidden_curr)));
+    graph_->Process(shared_ptr<Operation>(new MulOp(wxh_[d], input_vector, &h0)));
+    graph_->Process(shared_ptr<Operation>(new MulOp(whh_[d], hidden_prev, &h1)));
+    graph_->Process(shared_ptr<Operation>(new AddOp(h0, h1, &h01)));
+    graph_->Process(shared_ptr<Operation>(new AddOp(h01, bhh_[d], &bias)));
+    graph_->Process(shared_ptr<Operation>(new ReluOp(bias, &hidden_curr)));
 
     hidden.emplace_back(hidden_curr);
   }
@@ -84,8 +84,8 @@ void Rnn::Create(int idx)
   // Decoder.
   shared_ptr<Mat> hd;
   graph_->Process(
-      shared_ptr<Object>(new MulOp(whd_, hidden[hidden.size() - 1], &hd)));
-  graph_->Process(shared_ptr<Object>(new AddOp(hd, bd_, &output_)));
+      shared_ptr<Operation>(new MulOp(whd_, hidden[hidden.size() - 1], &hd)));
+  graph_->Process(shared_ptr<Operation>(new AddOp(hd, bd_, &output_)));
 
   prev_hiddens_ = hidden;
 }

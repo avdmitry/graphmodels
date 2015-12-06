@@ -3,13 +3,7 @@
 
 #include "utils.h"
 
-enum PoolType
-{
-  MAX = 0,
-  AVE = 1
-};
-
-class PoolLayer : public Object
+class PoolLayer : public Operation
 {
  public:
   PoolLayer(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out,
@@ -25,19 +19,21 @@ class PoolLayer : public Object
     params_.stride_y = stride_y;
     params_.filter_width = filter_width;
     params_.filter_height = filter_height;
-    params_.num_output_channels = in_->size_[2];
+    params_.num_output = in_->size_[2];
+    params_.out_width =
+        (in_->size_[0] + padding_x * 2 - filter_width) / stride_x + 1;
+    params_.out_height =
+        (in_->size_[1] + padding_y * 2 - filter_height) / stride_y + 1;
 
-    int out_width = (in_->size_[0] + params_.padding_x * 2 - filter_width) /
-                        params_.stride_x +
-                    1;
-    int out_height = (in_->size_[1] + params_.padding_y * 2 - filter_height) /
-                         params_.stride_y +
-                     1;
-    printf("pool out: %u %u %u %u\n", out_width, out_height, in_->size_[2],
-           in_->size_[3]);
-    out_ = std::shared_ptr<Mat>(
-        new Mat(out_width, out_height, in_->size_[2], in_->size_[3]));
+    printf("pool out: %u %u %u %u\n", params_.out_width, params_.out_height,
+           in_->size_[2], in_->size_[3]);
+    out_ = std::shared_ptr<Mat>(new Mat(params_.out_width, params_.out_height,
+                                        in_->size_[2], in_->size_[3]));
+    math->MemoryAlloc(out_);
+    math->MemoryAlloc(out_->dw_);
     *out = out_;
+
+    math->PoolSetUp(in_, type_, params_);
   }
 
   void Forward(bool train)
@@ -58,10 +54,10 @@ class PoolLayer : public Object
     switch (type_)
     {
       case MAX:
-        math->MaxPoolDeriv(in_, in_->dw_, out_, out_->dw_, params_);
+        math->MaxPoolDeriv(in_, out_, params_);
         break;
       case AVE:
-        math->AvePoolDeriv(in_, in_->dw_, out_, out_->dw_, params_);
+        math->AvePoolDeriv(in_, out_, params_);
         break;
     }
   }
@@ -75,13 +71,14 @@ class PoolLayer : public Object
   void ClearDw()
   {
     std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);
+    math->MemoryClear(in_->dw_);
   }
 
   void GetParams(std::vector<std::shared_ptr<Mat>> &params)
   {
   }
 
-  ConvParams params_;
+  Params params_;
   PoolType type_;
   std::shared_ptr<Mat> in_;
   std::shared_ptr<Mat> out_;

@@ -3,7 +3,7 @@
 
 #include "utils.h"
 
-class DropoutOp : public Object
+class DropoutOp : public Operation
 {
  public:
   DropoutOp(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out, float prob)
@@ -12,6 +12,8 @@ class DropoutOp : public Object
     mask_ = std::shared_ptr<Mat>(new Mat(in_->size_));
     prob_ = prob;
     out_ = std::shared_ptr<Mat>(new Mat(in_->size_));
+    math->MemoryAlloc(out_);
+    math->MemoryAlloc(out_->dw_);
     *out = out_;
   }
 
@@ -54,6 +56,8 @@ class DropoutOp : public Object
   {
     std::fill(in_->dw_->data_.begin(), in_->dw_->data_.end(), 0);
     std::fill(mask_->dw_->data_.begin(), mask_->dw_->data_.end(), 0);
+    math->MemoryClear(in_->dw_);
+    math->MemoryClear(mask_->dw_);
   }
 
   void GetParams(std::vector<std::shared_ptr<Mat>> &params)

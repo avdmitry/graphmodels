@@ -4,17 +4,21 @@
 #include "utils.h"
 
 // Extract row with index idx (optimization for special case MulOp: mat*vec).
-class ExtractRowOp : public Object
+class ExtractRowOp : public Operation
 {
  public:
-  ExtractRowOp(std::shared_ptr<Mat> &mat, int idx,
-               std::shared_ptr<Mat> *out)
+  ExtractRowOp(std::shared_ptr<Mat> &mat, int idx, std::shared_ptr<Mat> *out)
   {
     assert(idx >= 0 && idx < mat->size_[0]);
     mat_ = mat;
     idx_ = idx;
     out_ = std::shared_ptr<Mat>(new Mat(mat_->size_[1], 1));
+    math->MemoryAlloc(out_);
+    math->MemoryAlloc(out_->dw_);
     *out = out_;
+
+    math->MemoryAlloc(mat_);
+    math->MemoryAlloc(mat_->dw_);
   }
 
   void Forward(bool train)
@@ -42,6 +46,7 @@ class ExtractRowOp : public Object
   void ClearDw()
   {
     std::fill(mat_->dw_->data_.begin(), mat_->dw_->data_.end(), 0);
+    math->MemoryClear(mat_->dw_);
   }
 
   void GetParams(std::vector<std::shared_ptr<Mat>> &params)

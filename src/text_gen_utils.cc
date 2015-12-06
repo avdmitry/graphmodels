@@ -62,9 +62,10 @@ float CalcCost(shared_ptr<Model> &model, string &sent, shared_ptr<Data> &data)
 
     model->graph_->Forward(true, true);
 
-    vector<int> targets;
-    targets.emplace_back(idx_target);
-    cost += SoftmaxLoss(model, targets);
+    shared_ptr<Mat> labels(new Mat(1, 1, 1, 1, false));
+    labels->data_[0] = idx_target;
+    shared_ptr<Mat> out;
+    cost += math->Softmax(model->output_, out, labels);
   }
 
   return cost / sent.length();
@@ -108,7 +109,9 @@ string PredictSentence(shared_ptr<Model> &model, shared_ptr<Data> &data,
       }
     }
 
-    shared_ptr<Mat> probs = math->Softmax(logprobs);
+    shared_ptr<Mat> probs;
+    shared_ptr<Mat> labels(new Mat(1, 1, 1, 1, false));  // Not used.
+    math->Softmax(logprobs, probs, labels);
     if (sample_idx)
     {
       idx = SampleIdx(probs->data_);

@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     model->graph_ = shared_ptr<Graph>(new Graph);
     cost_epoch += CalcCost(model, sent, data);
 
-    model->graph_->Backward();
+    model->graph_->Backward(true);
 
     LearnRmsprop(model, 0.001);
 
