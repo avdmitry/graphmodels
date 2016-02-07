@@ -28,6 +28,7 @@ inline void CheckCuda(cudaError_t status)
   if (status != cudaSuccess)
   {
     printf("cuda error: %s\n", cudaGetErrorString(status));
+    exit(-1);
   }
 }
 
@@ -36,6 +37,7 @@ inline void CheckCublas(int status)
   if (status != CUBLAS_STATUS_SUCCESS)
   {
     printf("cublas error: %u\n", status);
+    exit(-1);
   }
 }
 
@@ -44,6 +46,7 @@ inline void CheckCudnn(cudnnStatus_t status)
   if (status != CUDNN_STATUS_SUCCESS)
   {
     printf("cudnn error: %s\n", cudnnGetErrorString(status));
+    exit(-1);
   }
 }
 
@@ -218,6 +221,91 @@ void MathCudnn::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   CheckCublas(cublasSgemm(cublas_handle, CUBLAS_OP_N, CUBLAS_OP_T, m, n, k,
                           &kOne, out->data_device_, m, mat1->data_device_, n,
                           &kZero, mat2d->data_device_, m));
+}
+
+class BatchNormContextCudnn : public Context
+{
+ public:
+  BatchNormContextCudnn()
+  {
+    CheckCudnn(cudnnCreateTensorDescriptor(&descr_tensor_src));
+    CheckCudnn(cudnnCreateTensorDescriptor(&descr_tensor_scale_bias_mean_var));
+  }
+  ~BatchNormContextCudnn()
+  {
+    CheckCuda(cudaFree(cashed_mean_));
+    CheckCuda(cudaFree(cashed_variance_));
+
+    CheckCudnn(cudnnDestroyTensorDescriptor(descr_tensor_src));
+    CheckCudnn(cudnnDestroyTensorDescriptor(descr_tensor_scale_bias_mean_var));
+  }
+
+  cudnnTensorDescriptor_t descr_tensor_src, descr_tensor_scale_bias_mean_var;
+  float *cashed_mean_, *cashed_variance_;
+};
+
+void MathCudnn::BatchNormSetUp(shared_ptr<Mat> &in_w, Params &params)
+{
+  shared_ptr<BatchNormContextCudnn> context(new BatchNormContextCudnn);
+  params.context = shared_ptr<Context>(context);
+
+  int n = in_w->size_[3];
+  int c = in_w->size_[2];
+  int h = in_w->size_[1];
+  int w = in_w->size_[0];
+  SetTensorDescriptor(context->descr_tensor_src, n, c, h, w);
+  SetTensorDescriptor(context->descr_tensor_scale_bias_mean_var, 1, c, 1, 1);
+
+  CheckCuda(cudaMalloc((void **)&context->cashed_mean_, c * sizeof(float)));
+  CheckCuda(cudaMalloc((void **)&context->cashed_variance_, c * sizeof(float)));
+}
+
+void MathCudnn::BatchNorm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                          shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                          shared_ptr<Mat> &variance, shared_ptr<Mat> &out_w,
+                          Params &params, bool train)
+{
+  BatchNormContextCudnn *context =
+      static_cast<BatchNormContextCudnn *>(params.context.get());
+
+  if (train)
+  {
+    CheckCudnn(cudnnBatchNormalizationForwardTraining(
+        cudnn_handle, CUDNN_BATCHNORM_SPATIAL, &kOne, &kZero,
+        context->descr_tensor_src, in_w->data_device_,
+        context->descr_tensor_src, out_w->data_device_,
+        context->descr_tensor_scale_bias_mean_var, scale->data_device_,
+        bias->data_device_, 1, mean->data_device_, variance->data_device_,
+        CUDNN_BN_MIN_EPSILON, context->cashed_mean_,
+        context->cashed_variance_));
+  }
+  else
+  {
+    CheckCudnn(cudnnBatchNormalizationForwardInference(
+        cudnn_handle, CUDNN_BATCHNORM_SPATIAL, &kOne, &kZero,
+        context->descr_tensor_src, in_w->data_device_,
+        context->descr_tensor_src, out_w->data_device_,
+        context->descr_tensor_scale_bias_mean_var, scale->data_device_,
+        bias->data_device_, mean->data_device_, variance->data_device_,
+        CUDNN_BN_MIN_EPSILON));
+  }
+}
+
+void MathCudnn::BatchNormDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                               shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                               shared_ptr<Mat> &variance,
+                               shared_ptr<Mat> &out_w, Params &params)
+{
+  BatchNormContextCudnn *context =
+      static_cast<BatchNormContextCudnn *>(params.context.get());
+
+  CheckCudnn(cudnnBatchNormalizationBackward(
+      cudnn_handle, CUDNN_BATCHNORM_SPATIAL, &kOne, &kZero,
+      context->descr_tensor_src, in_w->data_device_, context->descr_tensor_src,
+      out_w->dw_->data_device_, context->descr_tensor_src,
+      in_w->dw_->data_device_, context->descr_tensor_scale_bias_mean_var,
+      scale->data_device_, scale->dw_->data_device_, bias->dw_->data_device_,
+      CUDNN_BN_MIN_EPSILON, context->cashed_mean_, context->cashed_variance_));
 }
 
 class ActivContextCudnn : public Context
@@ -395,7 +483,7 @@ float MathCudnn::Softmax(shared_ptr<Mat> &mat, shared_ptr<Mat> &out,
       (mat->data_device_, out->data_device_, mat->size_[3], num_elements);
 
   float *loss_device, loss;
-  cudaMalloc(&loss_device, sizeof(float));
+  CheckCuda(cudaMalloc(&loss_device, sizeof(float)));
   kSoftmaxDeriv << <1, 1>>> (mat->dw_->data_device_, labels->data_device_,
                              out->data_device_, mat->size_[3], num_elements,
                              loss_device);
@@ -897,17 +985,22 @@ void MathCudnn::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
 
 // learning
 
-static __global__ void kSGD(float *mat, float *mat_dw, unsigned int len,
-                            float learning_rate, int batch_size)
+static __global__ void kSGD(float *mat, float *mat_dw, float *mat_prev,
+                            unsigned int len, float learning_rate,
+                            int batch_size, float decay_rate)
 {
+  const float momentum = 0.9;
+
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned int num_threads = blockDim.x * gridDim.x;
   for (unsigned int i = idx; i < len; i += num_threads)
   {
-    if (mat[i] != 0)
-    {
-      mat[i] += -learning_rate * (mat_dw[i] / batch_size);
-    }
+    float curr_dw = mat_dw[i] / batch_size;
+    float dw = momentum * mat_prev[i] + mat[i] * learning_rate * decay_rate +
+               /*(1 - momentum) **/ learning_rate * curr_dw;
+    mat_prev[i] = dw;
+    mat_dw[i] = 0;
+    mat[i] -= dw;
   }
 }
 
@@ -925,32 +1018,34 @@ static __global__ void kRMSProp(float *mat, float *mat_dw, float *mat_prev,
   for (unsigned int i = idx; i < len; i += num_threads)
   {
     // Rmsprop adaptive learning rate.
-    float mdwi = mat_dw[i] / batch_size;
-    mat_prev[i] = decay_rate * mat_prev[i] + (1.0 - decay_rate) * mdwi * mdwi;
+    float curr_dw = mat_dw[i] / batch_size;
+    mat_prev[i] =
+        decay_rate * mat_prev[i] + (1.0 - decay_rate) * curr_dw * curr_dw;
 
     // Gradient clip.
-    if (mdwi > clipval)
+    if (curr_dw > clipval)
     {
-      mdwi = clipval;
+      curr_dw = clipval;
     }
-    if (mdwi < -clipval)
+    if (curr_dw < -clipval)
     {
-      mdwi = -clipval;
+      curr_dw = -clipval;
     }
 
     // Update (and regularize).
-    mat[i] +=
-        -learning_rate * mdwi / sqrt(mat_prev[i] + smooth_eps) - regc * mat[i];
+    mat[i] += -learning_rate * curr_dw / sqrt(mat_prev[i] + smooth_eps) -
+              regc * mat[i];
 
     mat_dw[i] = 0;
   }
 }
 
-void MathCudnn::SGD(shared_ptr<Mat> &mat, float learning_rate, int batch_size)
+void MathCudnn::SGD(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,
+                    float learning_rate, int batch_size, float decay_rate)
 {
   kSGD << <NUM_BLOCKS, NUM_THREADS>>>
-      (mat->data_device_, mat->dw_->data_device_, mat->data_.size(),
-       learning_rate, batch_size);
+      (mat->data_device_, mat->dw_->data_device_, mat_prev->data_device_,
+       mat->data_.size(), learning_rate, batch_size, decay_rate);
 }
 
 void MathCudnn::Rmsprop(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,

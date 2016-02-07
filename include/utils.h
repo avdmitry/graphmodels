@@ -44,6 +44,14 @@ class Operation
   virtual void SetBatchSize(int new_size) = 0;
   virtual void ClearDw() = 0;
   virtual void GetParams(std::vector<std::shared_ptr<Mat>> &params) = 0;
+
+  std::string GetName()
+  {
+    return name_;
+  }
+
+ protected:
+  std::string name_;
 };
 
 class Graph
@@ -104,6 +112,64 @@ class Graph
     for (int i = backward_.size() - 1; i >= 0; --i)
     {
       backward_[i]->GetParams(params);
+    }
+  }
+
+  void GetParamsForward(std::vector<std::shared_ptr<Mat>> &params)
+  {
+    for (int i = 0; i < forward_.size(); ++i)
+    {
+      forward_[i]->GetParams(params);
+    }
+  }
+
+  void Save(FILE *file)
+  {
+    for (int i = 0; i < forward_.size(); ++i)
+    {
+      std::vector<std::shared_ptr<Mat>> params;
+      forward_[i]->GetParams(params);
+      if (params.size() > 0)
+      {
+        std::string name = forward_[i]->GetName();
+        int8_t name_size = name.length() + 1;
+        fwrite((void *)&name_size, sizeof(int8_t), 1, file);
+        fwrite((void *)name.c_str(), 1, name_size, file);
+        for (std::shared_ptr<Mat> &curr : params)
+        {
+          math->CopyToHost(curr);
+          int32_t param_size = curr->data_.size();
+          fwrite((void *)&param_size, sizeof(int32_t), 1, file);
+          fwrite((void *)&curr->data_[0], sizeof(float), param_size, file);
+        }
+      }
+    }
+  }
+
+  void Load(FILE *file)
+  {
+    for (int i = 0; i < forward_.size(); ++i)
+    {
+      std::vector<std::shared_ptr<Mat>> params;
+      forward_[i]->GetParams(params);
+      if (params.size() > 0)
+      {
+        int8_t name_size;
+        int res;
+        res = fread((void *)&name_size, sizeof(int8_t), 1, file);
+        std::string name;
+        name.resize(name_size);
+        res = fread((void *)name.c_str(), 1, name_size, file);
+        printf("%s -> %s\n", name.c_str(), forward_[i]->GetName().c_str());
+        for (std::shared_ptr<Mat> &curr : params)
+        {
+          int32_t param_size;
+          res = fread((void *)&param_size, sizeof(int32_t), 1, file);
+          // printf("%u -> %lu\n", param_size, curr->data_.size());
+          res = fread((void *)&curr->data_[0], sizeof(float), param_size, file);
+          math->CopyToDevice(curr);
+        }
+      }
     }
   }
 

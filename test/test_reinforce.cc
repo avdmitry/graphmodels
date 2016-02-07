@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
   shared_ptr<DQNAgent> agent(
       new DQNAgent(env->GetNumStates(), env->GetMaxNumActions()));
 
-  vector<string> expected = {"-1.430", "-1.017", "-0.646", "-1.044"};
+  vector<string> expected = {"-0.553", "-0.173", "-1.108", "-0.005"};
   float reward = 0;
   static const int kCompareAfter = 1000;
   int i = 0;
-  for (int step = 0; step < kCompareAfter * expected.size(); ++step)
+  for (int step = 0; step <= kCompareAfter * expected.size(); ++step)
   {
     shared_ptr<Mat> state = env->GetState();
     int action = agent->Act(state);

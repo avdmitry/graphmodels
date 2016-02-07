@@ -6,10 +6,12 @@
 class ConvLayer : public Operation
 {
  public:
-  ConvLayer(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out,
-            int num_filters, int filter_width, int filter_height, int padding_x,
-            int padding_y, int stride_x, int stride_y)
+  ConvLayer(std::string name, std::shared_ptr<Mat> &in,
+            std::shared_ptr<Mat> *out, int num_filters, int filter_width,
+            int filter_height, int padding_x, int padding_y, int stride_x,
+            int stride_y)
   {
+    name_ = name;
     in_ = in;
 
     params_.padding_x = padding_x;

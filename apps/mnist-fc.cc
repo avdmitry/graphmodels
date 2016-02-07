@@ -25,16 +25,16 @@ class FcNet : public Model
 
     shared_ptr<Mat> fc1, rel1;
     graph_->Process(
-        shared_ptr<Operation>(new FCLayer(input_, &fc1, num_hidden_units)));
+        shared_ptr<Operation>(new FCLayer("", input_, &fc1, num_hidden_units)));
     graph_->Process(shared_ptr<Operation>(new ReluOp(fc1, &rel1)));
 
     shared_ptr<Mat> fc2, rel2;
     graph_->Process(
-        shared_ptr<Operation>(new FCLayer(rel1, &fc2, num_hidden_units)));
+        shared_ptr<Operation>(new FCLayer("", rel1, &fc2, num_hidden_units)));
     graph_->Process(shared_ptr<Operation>(new ReluOp(fc2, &rel2)));
 
     graph_->Process(
-        shared_ptr<Operation>(new FCLayer(rel2, &output_, num_output)));
+        shared_ptr<Operation>(new FCLayer("", rel2, &output_, num_output)));
 
     graph_->GetParams(params_);
     for (size_t i = 0; i < params_.size(); ++i)

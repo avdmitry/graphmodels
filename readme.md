@@ -19,6 +19,7 @@ The following models are implemented:
 
   - Fully-connected example (~98% accuracy in about 1 min on i7 CPU): [mnist-fc](apps/mnist-fc.cc)
   - Convolutional example (~99% accuracy in about 3 min on i7 CPU): [mnist-conv](apps/mnist-conv.cc)
+  - Imagenet classification (Tiny model trained only ~4 days, ~100 hours on 3Gb GeForce GTX 780. Center crop accuracy, top-1: 47.7%, top-5: 72.9%): [imagenet_tiny](apps/imagenet_tiny.cc)
 
 #### References
 

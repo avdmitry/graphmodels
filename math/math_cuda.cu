@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <cublas_v2.h>
 
-//#include "math_cudnn.h"  // default implementation
+#include "math_cudnn.h"  // default implementation
 
 using std::string;
 using std::vector;
@@ -16,19 +16,21 @@ static const float kOne = 1.0f;
 
 static cublasHandle_t cublas_handle;
 
-static inline void CheckCuda(cudaError_t status)
+inline void CheckCuda(cudaError_t status)
 {
   if (status != cudaSuccess)
   {
     printf("cuda error: %s\n", cudaGetErrorString(status));
+    exit(-1);
   }
 }
 
-static inline void CheckCublas(int status)
+inline void CheckCublas(int status)
 {
   if (status != CUBLAS_STATUS_SUCCESS)
   {
     printf("cublas error: %u\n", status);
+    exit(-1);
   }
 }
 
@@ -258,6 +260,23 @@ void MathCuda::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   math_cudnn->MulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
+void MathCuda::BatchNorm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                         shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                         shared_ptr<Mat> &variance, shared_ptr<Mat> &out_w,
+                         Params &params, bool train)
+{
+  math_cudnn->BatchNorm(in_w, scale, bias, mean, variance, out_w, params,
+                        train);
+}
+
+void MathCuda::BatchNormDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                              shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                              shared_ptr<Mat> &variance, shared_ptr<Mat> &out_w,
+                              Params &params)
+{
+  math_cudnn->BatchNormDeriv(in_w, scale, bias, mean, variance, out_w, params);
+}
+
 void MathCuda::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
                     Params &params)
 {
@@ -367,17 +386,22 @@ void MathCuda::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
 
 // learning
 
-__global__ void kSGD(float *mat, float *mat_dw, unsigned int len,
-                     float learning_rate, int batch_size)
+__global__ void kSGD(float *mat, float *mat_dw, float *mat_prev,
+                     unsigned int len, float learning_rate, int batch_size,
+                     float decay_rate)
 {
+  const float momentum = 0.9;
+
   const unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
   const unsigned int num_threads = blockDim.x * gridDim.x;
   for (unsigned int i = idx; i < len; i += num_threads)
   {
-    if (mat[i] != 0)
-    {
-      mat[i] += -learning_rate * (mat_dw[i] / batch_size);
-    }
+    float curr_dw = mat_dw[i] / batch_size;
+    float dw = momentum * mat_prev[i] + mat[i] * learning_rate * decay_rate +
+               /*(1 - momentum) **/ learning_rate * curr_dw;
+    mat_prev[i] = dw;
+    mat_dw[i] = 0;
+    mat[i] -= dw;
   }
 }
 
@@ -415,11 +439,12 @@ __global__ void kRMSProp(float *mat, float *mat_dw, float *mat_prev,
   }
 }
 
-void MathCuda::SGD(shared_ptr<Mat> &mat, float learning_rate, int batch_size)
+void MathCuda::SGD(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,
+                   float learning_rate, int batch_size, float decay_rate)
 {
   kSGD << <NUM_BLOCKS, NUM_THREADS>>>
-      (mat->data_device_, mat->dw_->data_device_, mat->data_.size(),
-       learning_rate, batch_size);
+      (mat->data_device_, mat->dw_->data_device_, mat_prev->data_device_,
+       mat->data_.size(), learning_rate, batch_size, decay_rate);
 }
 
 void MathCuda::Rmsprop(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,

@@ -15,6 +15,10 @@ add_library(graphmodels ${srcs} ${test} ${hdrs})
 default_properties(graphmodels)
 set(CMAKE_CXX_FLAGS "-O3 -ffast-math -std=c++11")
 
+find_package(OpenCV REQUIRED)
+include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
+message(STATUS "OpenCV found (${OpenCV_CONFIG_PATH})")
+
 add_subdirectory(math)
 
 add_applications()

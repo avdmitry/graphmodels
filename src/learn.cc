@@ -2,12 +2,14 @@
 
 using std::shared_ptr;
 
-void LearnSGD(shared_ptr<Model> &model, float learning_rate, int batch_size)
+void LearnSGD(shared_ptr<Model> &model, float learning_rate, int batch_size,
+              float decay_rate)
 {
   for (size_t j = 0; j < model->params_.size(); ++j)
   {
     shared_ptr<Mat> &mat = model->params_[j];
-    math->SGD(mat, learning_rate, batch_size);
+    shared_ptr<Mat> &mat_prev = model->params_prev_[j];
+    math->SGD(mat, mat_prev, learning_rate, batch_size, decay_rate);
   }
 
   std::fill(model->output_->dw_->data_.begin(),

@@ -6,6 +6,7 @@
 #include "layers/add.h"
 #include "layers/conv_layer.h"
 #include "layers/dropout.h"
+#include "layers/batch_norm.h"
 #include "layers/elt_mul.h"
 #include "layers/extract_row.h"
 #include "layers/fc_layer.h"

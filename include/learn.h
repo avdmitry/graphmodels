@@ -4,7 +4,7 @@
 #include "utils.h"
 
 void LearnSGD(std::shared_ptr<Model> &model, float learning_rate,
-              int batch_size = 1);
+              int batch_size, float decay_rate);
 
 void LearnRmsprop(std::shared_ptr<Model> &model, float learning_rate,
                   int batch_size = 1);

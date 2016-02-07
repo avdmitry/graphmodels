@@ -172,7 +172,7 @@ class DQNAgent : public Agent
 
     net_->Backward();
 
-    LearnSGD(net_, 0.01);
+    LearnSGD(net_, 0.01, 1, 0.0);
 
     return tderror;
   }

@@ -51,6 +51,19 @@ class MathCpu : public Math
                         std::shared_ptr<Mat> &mat1d,
                         std::shared_ptr<Mat> &mat2d, std::shared_ptr<Mat> &out);
 
+  virtual void BatchNorm(std::shared_ptr<Mat> &in_w,
+                         std::shared_ptr<Mat> &scale,
+                         std::shared_ptr<Mat> &bias, std::shared_ptr<Mat> &mean,
+                         std::shared_ptr<Mat> &variance,
+                         std::shared_ptr<Mat> &out_w, Params &params,
+                         bool train);
+  virtual void BatchNormDeriv(std::shared_ptr<Mat> &in_w,
+                              std::shared_ptr<Mat> &scale,
+                              std::shared_ptr<Mat> &bias,
+                              std::shared_ptr<Mat> &mean,
+                              std::shared_ptr<Mat> &variance,
+                              std::shared_ptr<Mat> &out_w, Params &params);
+
   virtual void Relu(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w,
                     Params &params);
   virtual void Sigm(std::shared_ptr<Mat> &in_w, std::shared_ptr<Mat> &out_w,
@@ -90,8 +103,8 @@ class MathCpu : public Math
   virtual void AvePoolDeriv(std::shared_ptr<Mat> &in_w,
                             std::shared_ptr<Mat> &out_w, Params &params);
 
-  virtual void SGD(std::shared_ptr<Mat> &mat, float learning_rate,
-                   int batch_size);
+  virtual void SGD(std::shared_ptr<Mat> &mat, std::shared_ptr<Mat> &mat_prev,
+                   float learning_rate, int batch_size, float decay_rate);
 
   virtual void Rmsprop(std::shared_ptr<Mat> &mat,
                        std::shared_ptr<Mat> &mat_prev, float learning_rate,

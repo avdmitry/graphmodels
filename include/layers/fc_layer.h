@@ -6,8 +6,10 @@
 class FCLayer : public Operation
 {
  public:
-  FCLayer(std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out, int num_output)
+  FCLayer(std::string name, std::shared_ptr<Mat> &in, std::shared_ptr<Mat> *out,
+          int num_output)
   {
+    name_ = name;
     in_ = in;
 
     int num_input = in_->size_[0] * in_->size_[1] * in_->size_[2];
@@ -20,9 +22,8 @@ class FCLayer : public Operation
     math->MemoryAlloc(biases_);
     math->MemoryAlloc(biases_->dw_);
 
-    // printf("fc out: %u %u %u %u -> %u %u %u %u\n", in_->size_[0],
-    //       in_->size_[1], in_->size_[2], in_->size_[3], out_width,
-    //       out_height, params.num_output_channels, in_->size_[3]);
+    printf("fc out: %u %u %u %u -> %u %u %u %u\n", in_->size_[0], in_->size_[1],
+           in_->size_[2], in_->size_[3], 1, 1, num_output, in_->size_[3]);
     out_ = std::shared_ptr<Mat>(new Mat(1, 1, num_output, in_->size_[3]));
     math->MemoryAlloc(out_);
     math->MemoryAlloc(out_->dw_);

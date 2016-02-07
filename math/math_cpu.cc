@@ -169,6 +169,24 @@ void MathCpu::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
            &mat1->data_[0], n, beta, &mat2d->data_[0], m);*/
 }
 
+void MathCpu::BatchNorm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                        shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                        shared_ptr<Mat> &variance, shared_ptr<Mat> &out_w,
+                        Params &params, bool train)
+{
+  printf("not implemented yet\n");
+  exit(-1);
+}
+
+void MathCpu::BatchNormDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                             shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                             shared_ptr<Mat> &variance, shared_ptr<Mat> &out_w,
+                             Params &params)
+{
+  printf("not implemented yet\n");
+  exit(-1);
+}
+
 void MathCpu::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
                    Params &params)
 {
@@ -291,7 +309,7 @@ void MathCpu::Fc(shared_ptr<Mat> &in, shared_ptr<Mat> &filters,
       float result = biases->data_[i];
       for (int j = 0; j < num_in; ++j)
       {
-        // int filters_idx = num_out * j + i;
+        // cudnn: int filters_idx = num_out * j + i;
         int filters_idx = num_in * i + j;
         result += in->data_[in_offset + j] * filters->data_[filters_idx];
       }
@@ -785,14 +803,20 @@ void MathCpu::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   }
 }
 
-void MathCpu::SGD(shared_ptr<Mat> &mat, float learning_rate, int batch_size)
+void MathCpu::SGD(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,
+                  float learning_rate, int batch_size, float decay_rate)
 {
+  static const float momentum = 0.9;
+
   for (size_t i = 0; i < mat->data_.size(); ++i)
   {
-    if (mat->dw_->data_[i] != 0)
-    {
-      mat->data_[i] += -learning_rate * (mat->dw_->data_[i] / batch_size);
-    }
+    float curr_dw = mat->dw_->data_[i] / batch_size;
+    float dw = momentum * mat_prev->data_[i] +
+               mat->data_[i] * learning_rate * decay_rate +
+               /*(1 - momentum) **/ learning_rate * curr_dw;
+    mat_prev->data_[i] = dw;
+    mat->dw_->data_[i] = 0;
+    mat->data_[i] -= dw;
   }
 }
 

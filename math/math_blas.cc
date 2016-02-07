@@ -1,3 +1,4 @@
+#ifdef BUILD_BLAS
 #include "math_blas.h"
 
 #include <stdio.h>
@@ -117,6 +118,22 @@ void MathBlas::MulDeriv(shared_ptr<Mat> &mat1, shared_ptr<Mat> &mat2,
   math_cpu->MulDeriv(mat1, mat2, mat1d, mat2d, out);
 }
 
+void MathBlas::BatchNorm(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                         shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                         shared_ptr<Mat> &variance, shared_ptr<Mat> &out_w,
+                         Params &params, bool train)
+{
+  math_cpu->BatchNorm(in_w, scale, bias, mean, variance, out_w, params, train);
+}
+
+void MathBlas::BatchNormDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &scale,
+                              shared_ptr<Mat> &bias, shared_ptr<Mat> &mean,
+                              shared_ptr<Mat> &variance, shared_ptr<Mat> &out_w,
+                              Params &params)
+{
+  math_cpu->BatchNormDeriv(in_w, scale, bias, mean, variance, out_w, params);
+}
+
 // Activation functions here currently the same as for Cpu.
 void MathBlas::Relu(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
                     Params &params)
@@ -210,9 +227,10 @@ void MathBlas::AvePoolDeriv(shared_ptr<Mat> &in_w, shared_ptr<Mat> &out_w,
   math_cpu->AvePoolDeriv(in_w, out_w, params);
 }
 
-void MathBlas::SGD(shared_ptr<Mat> &mat, float learning_rate, int batch_size)
+void MathBlas::SGD(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,
+                   float learning_rate, int batch_size, float decay_rate)
 {
-  math_cpu->SGD(mat, learning_rate, batch_size);
+  math_cpu->SGD(mat, mat_prev, learning_rate, batch_size, decay_rate);
 }
 
 void MathBlas::Rmsprop(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,
@@ -220,3 +238,5 @@ void MathBlas::Rmsprop(shared_ptr<Mat> &mat, shared_ptr<Mat> &mat_prev,
 {
   math_cpu->Rmsprop(mat, mat_prev, learning_rate, batch_size);
 }
+
+#endif
