@@ -1,15 +1,10 @@
 #include "utils.h"
 #include "layers.h"
-#include "learn.h"
 #include "datasets/mnist.h"
 
 using std::string;
 using std::vector;
 using std::shared_ptr;
-
-// bs_1: 4.333 epoch| cost: 0.026| test acc: 0.979
-// bs_10: 2.500 epoch| cost: 0.003| test acc: 0.980
-// bs_10: 4.333 epoch| cost: 0.001| test acc: 0.983
 
 class FcNet : public Model
 {
@@ -110,54 +105,158 @@ void Validate(shared_ptr<Model> &net,
   }
   acc /= test.size();
 
-  printf("| test acc: %.3f", acc);
+  printf("test acc: %.3f\n", acc);
+}
+
+void ValidateSnn(shared_ptr<Model> &net,
+                 vector<shared_ptr<datasets::MnistObj>> &test)
+{
+  vector<shared_ptr<Mat>> params;
+  net->graph_->GetParamsForward(params);
+  vector<shared_ptr<Mat>> potentials;
+  for (int layer = 0; layer < params.size() / 2; ++layer)
+  {
+    shared_ptr<Mat> &filters = params[2 * layer];
+    shared_ptr<Mat> &biases = params[2 * layer + 1];
+    math->CopyToHost(filters);
+    math->CopyToHost(biases);
+    potentials.emplace_back(new Mat(1, filters->size_[1], 1, 1, false));
+  }
+
+  float acc = 0;
+
+  printf("Processing:");
+  for (int test_idx = 0; test_idx < test.size(); ++test_idx)
+  {
+    if (test_idx % 1000 == 0)
+    {
+      printf(" %u%%", (int)(100.0 * test_idx / test.size()));
+      fflush(stdout);
+    }
+
+    for (int layer = 0; layer < params.size() / 2; ++layer)
+    {
+      shared_ptr<Mat> &potential = potentials[layer];
+      for (int idx = 0; idx < potential->data_.size(); ++idx)
+      {
+        potential->data_[idx] = 0;
+      }
+    }
+
+    static const int kDuration = 15;
+    static const float kThreshold = 1.0f;
+    static const int kNumClasses = 10;
+    static const int kImageSize = 784;
+
+    vector<int> output_spikes(kNumClasses);
+    for (int duration = 0; duration < kDuration; ++duration)
+    {
+      vector<int> input_spikes(kImageSize);
+      for (int idx = 0; idx < kImageSize; ++idx)
+      {
+        // Test should be in [0..1].
+        if (Random01() <= test[test_idx]->image[idx])
+        {
+          input_spikes[idx] = 1;
+        }
+        else
+        {
+          input_spikes[idx] = 0;
+        }
+      }
+
+      for (int layer = 0; layer < params.size() / 2; ++layer)
+      {
+        shared_ptr<Mat> &potential = potentials[layer];
+        shared_ptr<Mat> &filters = params[2 * layer];
+        shared_ptr<Mat> &biases = params[2 * layer + 1];
+        // fc: in out 1 1
+        int num_in = filters->size_[0];
+        int num_out = filters->size_[1];
+        vector<int> curr_spikes(num_out);
+        for (int i = 0; i < num_out; ++i)
+        {
+          float result = 0.0;  // biases->data_[i];
+          for (int j = 0; j < num_in; ++j)
+          {
+            int filters_idx = num_out * j + i;
+            // int filters_idx = num_in * i + j;
+            result += input_spikes[j] * filters->data_[filters_idx];
+          }
+          potential->data_[i] += result;
+          if (potential->data_[i] >= kThreshold)
+          {
+            curr_spikes[i] = 1;
+            potential->data_[i] = 0;
+          }
+          else
+          {
+            curr_spikes[i] = 0;
+          }
+        }
+        input_spikes = curr_spikes;
+      }
+
+      for (int i = 0; i < kNumClasses; ++i)
+      {
+        output_spikes[i] += input_spikes[i];
+      }
+    }
+
+    float max_value = output_spikes[0];
+    int max_idx = 0;
+    for (int i = 1; i < output_spikes.size(); ++i)
+    {
+      float value = output_spikes[i];
+      if (value > max_value)
+      {
+        max_idx = i;
+        max_value = value;
+      }
+    }
+
+    int idx_pred = max_idx;
+    int idx_gt = test[test_idx]->label;
+    if (idx_gt == idx_pred)
+    {
+      acc += 1;
+    }
+  }
+  printf("\n");
+  acc /= test.size();
+
+  printf("snn acc: %.3f\n", acc);
 }
 
 int main(int argc, char *argv[])
 {
-  if (argc < 2)
+  if (argc != 3)
   {
-    printf("usage: mnist_data_path [model]\n");
+    printf("usage: mnist_data_path model\n");
     return -1;
   }
   string data_path(argv[1]);
-
-  string model_name;
-  if (argc > 2)
-  {
-    model_name = argv[2];
-  }
+  string model_name(argv[2]);
 
   // srand(time(NULL));
   srand(0);
 
-  math = shared_ptr<Math>(new MathCpu);
-  // math = shared_ptr<Math>(new MathCudnn(0));
+  // math = shared_ptr<Math>(new MathCpu);
+  math = shared_ptr<Math>(new MathCudnn(0));
   math->Init();
 
   datasets::Mnist mnist(data_path);
-  vector<shared_ptr<datasets::MnistObj>> &train = mnist.train_;
   vector<shared_ptr<datasets::MnistObj>> &test = mnist.test_;
-  printf("train: %lu\n", train.size());
   printf("test: %lu\n", test.size());
 
   // Hyperparameters.
   float learning_rate = 0.0005;
-  float decay_rate = 0.001;
   int batch_size = 10;
-  int output_each = 1000;
-  int time_each = 1000;
-  int validate_each = 10000;
-  int save_each = 10000;
-  int lr_drop_each = 2 * 60000;
-  int steps_num = 1000000;
   int start_step = 0;
   int output_each_curr = 0;
   int time_each_curr = 0;
   int save_each_curr = 0;
   int lr_drop_each_curr = 0;
-
-  printf("epoch size in batches: %.1f\n", 1.0 * train.size() / batch_size);
 
   shared_ptr<Model> net(new FcNet(784, 10, batch_size));
 
@@ -182,108 +281,7 @@ int main(int argc, char *argv[])
     fclose(file);
 
     Validate(net, test);
-    return 0;
-  }
-
-  int num_examples = 0;
-  int epoch_num = 0;
-  float cost = 0.0;
-  int train_idx = 0;
-  clock_t begin_time = clock();
-  for (int step = start_step + 1; step <= steps_num; ++step)
-  {
-    shared_ptr<Mat> labels(new Mat(1, 1, 1, batch_size, false));
-    for (int batch = 0; batch < batch_size; ++batch)
-    {
-      for (int idx = 0; idx < 784; ++idx)
-      {
-        net->input_->data_[idx + batch * 784] = train[train_idx]->image[idx];
-      }
-      labels->data_[batch] = train[train_idx]->label;
-
-      train_idx++;
-      if (train_idx == train.size())
-      {
-        train_idx = 0;
-      }
-    }
-    math->CopyToDevice(net->input_);
-    math->CopyToDevice(labels);
-
-    net->Forward(true);
-
-    // printf("output: %u %u %u %u\n", logprobs->size_[0], logprobs->size_[1],
-    //         logprobs->size_[2], logprobs->size_[3]);
-
-    shared_ptr<Mat> out;
-    cost += math->Softmax(net->output_, out, labels);
-
-    net->Backward();
-
-    LearnRmsprop(net, learning_rate, batch_size);
-    // LearnSGD(net, learning_rate, batch_size, decay_rate);
-
-    bool new_line = false;
-    num_examples = step * batch_size;
-
-    int epoch_num_curr = num_examples / train.size();
-    if (epoch_num != epoch_num_curr)
-    {
-      epoch_num = epoch_num_curr;
-    }
-
-    lr_drop_each_curr += batch_size;
-    if (lr_drop_each_curr >= lr_drop_each)
-    {
-      lr_drop_each_curr = 0;
-      learning_rate *= 0.5;
-      printf("learning rate: %.6f\n", learning_rate);
-    }
-
-    save_each_curr += batch_size;
-    if (save_each_curr >= save_each)
-    {
-      save_each_curr = 0;
-      string file_name("mnist_fc_" + std::to_string(step) + ".model");
-      printf("saving %s\n", file_name.c_str());
-      FILE *file = fopen(file_name.c_str(), "wb");
-      net->graph_->Save(file);
-      fwrite((void *)&step, sizeof(int), 1, file);
-      fwrite((void *)&learning_rate, sizeof(float), 1, file);
-      fwrite((void *)&output_each_curr, sizeof(int), 1, file);
-      fwrite((void *)&time_each_curr, sizeof(int), 1, file);
-      fwrite((void *)&save_each_curr, sizeof(int), 1, file);
-      fwrite((void *)&lr_drop_each_curr, sizeof(int), 1, file);
-      fclose(file);
-    }
-
-    output_each_curr += batch_size;
-    if (output_each_curr >= output_each)
-    {
-      output_each_curr = 0;
-      printf("%.3f epoch| cost: %.6f", 1.0f * num_examples / train.size(),
-             cost / (output_each /* * batch_size*/));
-      cost = 0.0;
-      new_line = true;
-    }
-    if (num_examples % validate_each == 0 && step != 0)
-    {
-      Validate(net, test);
-      new_line = true;
-    }
-    time_each_curr += batch_size;
-    if (time_each_curr >= time_each)
-    {
-      time_each_curr = 0;
-      float time_curr = float(clock() - begin_time) / CLOCKS_PER_SEC;
-      printf("| time: %.3f s", time_curr);
-      begin_time = clock();
-      new_line = true;
-    }
-    if (new_line)
-    {
-      printf("\n");
-    }
+    ValidateSnn(net, test);
   }
 
   return 0;
